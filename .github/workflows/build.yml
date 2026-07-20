@@ -22,7 +22,7 @@ jobs:
       - name: Restore
         run: msbuild src/ComfyCarry/ComfyCarry.csproj /t:Restore /p:Configuration=Release /p:Platform=x64
 
-      - name: Build
+      - name: Publish (self-contained, unpackaged)
         run: msbuild src/ComfyCarry/ComfyCarry.csproj /p:Configuration=Release /p:Platform=x64 /p:WindowsPackageType=None /p:SelfContained=true /p:RuntimeIdentifier=win-x64 /t:Publish /p:PublishDir=publish -fl -v:minimal
 
       - name: Download rclone.exe into publish
@@ -51,4 +51,3 @@ jobs:
           name: build-logs
           path: |
             msbuild.log
-            src/ComfyCarry/obj/**/*.json

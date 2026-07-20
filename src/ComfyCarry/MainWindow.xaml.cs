@@ -16,6 +16,7 @@ public sealed partial class MainWindow : Window
     {
         this.InitializeComponent();
         EnsureSystemSession();
+        SetMinSize(960, 640);
         ApplyTheme();
         ApplyLanguage();
         Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First();
@@ -34,6 +35,23 @@ public sealed partial class MainWindow : Window
             appWindow.Closing += OnWindowClosing;
         }
         catch { /* 非 WindowsAppSDK 完整环境时忽略 */ }
+    }
+
+    private void SetMinSize(int w, int h)
+    {
+        try
+        {
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            var id = Win32Interop.GetWindowIdFromWindow(hwnd);
+            var appWindow = AppWindow.GetWindowFromWindowId(id);
+            appWindow.Resize(new Windows.Graphics.SizeInt32(w, h));
+            // Note: AppWindow 没有直接的 MinSize，但 Presenter 可设置
+            if (appWindow.Presenter is OverlappedPresenter op)
+            {
+                op.SetMinSize(w, h);
+            }
+        }
+        catch { /* ignore */ }
     }
 
     private void OnWindowClosing(AppWindow sender, AppWindowClosingEventArgs args)
