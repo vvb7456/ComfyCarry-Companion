@@ -20,25 +20,29 @@ jobs:
         run: dotnet restore src/ComfyCarry/ComfyCarry.csproj
         continue-on-error: true
 
-      - name: Build (capture full log)
+      - name: Build (diag verbosity)
         run: |
-          dotnet build src/ComfyCarry/ComfyCarry.csproj -c Release -p:Platform=x64 -v normal 2>&1 | Tee-Object -FilePath build.log
+          dotnet build src/ComfyCarry/ComfyCarry.csproj -c Release -p:Platform=x64 -v diag 2>&1 | Tee-Object -FilePath build.log
         shell: pwsh
         continue-on-error: true
 
-      - name: Run XamlCompiler directly to capture errors
+      - name: Run XamlCompiler directly (capture stderr)
         if: always()
         shell: pwsh
         run: |
-          $inputJson = "src/ComfyCarry/obj/x64/Release/net8.0-windows10.0.19041.0/win-x64/input.json"
-          $outputJson = "src/ComfyCarry/obj/x64/Release/net8.0-windows10.0.19041.0/win-x64/output.json"
-          $xc = "C:\Users\runneradmin\.nuget\packages\microsoft.windowsappsdk\1.5.240607001\tools\net472\XamlCompiler.exe"
-          if (Test-Path $inputJson) {
-            & $xc $inputJson $outputJson 2>&1 | Tee-Object -FilePath xamlcompiler.log
-            Write-Host "XamlCompiler exit code: $LASTEXITCODE"
-            if (Test-Path $outputJson) { Get-Content $outputJson }
+          $base = "src/ComfyCarry/obj/x64/Release/net8.0-windows10.0.19041.0/win-x64"
+          $inputJson = "$base/input.json"
+          $outputJson = "$base/output2.json"
+          # XamlCompiler.exe 在 nuget 包的 tools/net472 下
+          $xc = Get-ChildItem "C:\Users\runneradmin\.nuget\packages\microsoft.windowsappsdk\1.5.240607001" -Recurse -Filter XamlCompiler.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($xc -and (Test-Path $inputJson)) {
+            Write-Host "Using: $($xc.FullName)"
+            $p = Start-Process -FilePath $xc.FullName -ArgumentList "`"$inputJson`"", "`"$outputJson`"" -NoNewWindow -Wait -PassThru -RedirectStandardError xamlcerr.txt -RedirectStandardOutput xamlcout.txt
+            Write-Host "Exit: $($p.ExitCode)"
+            Write-Host "--- stdout ---"; if (Test-Path xamlcout.txt) { Get-Content xamlcout.txt -Raw }
+            Write-Host "--- stderr ---"; if (Test-Path xamlcerr.txt) { Get-Content xamlcerr.txt -Raw }
           } else {
-            Write-Host "input.json not found"
+            Write-Host "XamlCompiler or input.json not found"
           }
 
       - name: Publish (self-contained, unpackaged)
@@ -77,7 +81,8 @@ jobs:
           path: |
             build.log
             publish.log
-            xamlcompiler.log
+            xamlcout.txt
+            xamlcerr.txt
             src/ComfyCarry/obj/**/*.json
             src/ComfyCarry/obj/**/*.txt
 
