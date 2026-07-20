@@ -8,13 +8,13 @@ namespace ComfyCarry.Services;
 /// <summary>
 /// 系统托盘常驻（SPEC §3.1/§3.2）。关窗最小化到托盘，后台继续拉取。
 /// 菜单：显示主窗口 / 暂停·继续 / 退出。
-/// 使用 H.NotifyIcon.Windowless（WinUI 3 代码创建，无需 XAML）。
+/// 使用 H.NotifyIcon.WinUI（参照 PigeonPost 的 InitializeTrayIcon 写法）。
 /// </summary>
 public sealed class TrayController : IDisposable
 {
     private readonly TaskbarIcon _icon;
     private readonly LocalizationService L;
-    private readonly Microsoft.UI.Xaml.Controls.MenuFlyoutItem _pauseItem;
+    private readonly MenuFlyoutItem _pauseItem;
     private bool _paused;
     private string _statusKey = "tray.status.idle";
 
@@ -23,32 +23,40 @@ public sealed class TrayController : IDisposable
     public TrayController(LocalizationService locale)
     {
         L = locale;
-        _pauseItem = new Microsoft.UI.Xaml.Controls.MenuFlyoutItem { Text = L.T("tray.pause") };
-        _pauseItem.Click += (s, e) => TogglePause();
+        _pauseItem = new MenuFlyoutItem { Text = L.T("tray.pause") };
 
         _icon = new TaskbarIcon
         {
             ToolTipText = L.T("app.title"),
-            // 占位图标：打包时把 app.ico 放 Assets 目录，这里指向它。
-            // 缺失时 H.NotifyIcon 用默认占位，不阻塞功能。
-            IconSource = "Assets/app.ico",
-            ContextMenuMode = ContextMenuMode.SecondWindow,
+            ContextFlyout = BuildMenu(),
             LeftClickCommand = new RelayCommand(ShowMainWindow),
         };
-        _icon.ContextFlyout = BuildMenu();
-        try { _icon.ForceCreate(); } catch (Exception ex) { Debug.WriteLine($"[Tray] create: {ex}"); }
+
+        // 图标：从 exe 提取（csproj 的 ApplicationIcon 设置后，exe 自带图标）
+        try
+        {
+            var exePath = Environment.ProcessPath;
+            if (exePath is not null && File.Exists(exePath))
+            {
+                _icon.Icon = new System.Drawing.Icon(exePath);
+            }
+        }
+        catch { /* 无图标时 H.NotifyIcon 用占位，不阻塞 */ }
+
+        try { _icon.ForceCreate(); }
+        catch (Exception ex) { Debug.WriteLine($"[Tray] create: {ex}"); }
     }
 
-    private Microsoft.UI.Xaml.Controls.MenuFlyout BuildMenu()
+    private MenuFlyout BuildMenu()
     {
-        var menu = new Microsoft.UI.Xaml.Controls.MenuFlyout();
-        var miShow = new Microsoft.UI.Xaml.Controls.MenuFlyoutItem { Text = L.T("tray.show") };
+        var menu = new MenuFlyout();
+        var miShow = new MenuFlyoutItem { Text = L.T("tray.show") };
         miShow.Click += (s, e) => ShowMainWindow();
-        var miExit = new Microsoft.UI.Xaml.Controls.MenuFlyoutItem { Text = L.T("tray.exit") };
-        miExit.Click += (s, e) => { Dispose(); Application.Current.Exit(); };
+        var miExit = new MenuFlyoutItem { Text = L.T("tray.exit") };
+        miExit.Click += (s, e) => { Dispose(); Environment.Exit(0); };
         menu.Items.Add(miShow);
         menu.Items.Add(_pauseItem);
-        menu.Items.Add(new Microsoft.UI.Xaml.Controls.MenuFlyoutSeparator());
+        menu.Items.Add(new MenuFlyoutSeparator());
         menu.Items.Add(miExit);
         return menu;
     }
@@ -78,4 +86,3 @@ public sealed class TrayController : IDisposable
         try { _icon.Dispose(); } catch { /* ignore */ }
     }
 }
-

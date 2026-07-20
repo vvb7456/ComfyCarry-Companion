@@ -11,10 +11,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup .NET 10
+      - name: Setup .NET 9
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '9.0.x'
 
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
@@ -23,7 +23,7 @@ jobs:
         run: msbuild src/ComfyCarry/ComfyCarry.csproj /t:Restore /p:Configuration=Release /p:Platform=x64
 
       - name: Publish (self-contained, unpackaged)
-        run: msbuild src/ComfyCarry/ComfyCarry.csproj /p:Configuration=Release /p:Platform=x64 /p:WindowsPackageType=None /p:SelfContained=true /p:RuntimeIdentifier=win-x64 /t:Publish /p:PublishDir=publish -fl -v:minimal
+        run: msbuild src/ComfyCarry/ComfyCarry.csproj /t:Publish /p:Configuration=Release /p:Platform=x64 /p:WindowsPackageType=None /p:SelfContained=true /p:RuntimeIdentifier=win-x64 /p:PublishDir=publish -fl -v:minimal
 
       - name: Download rclone.exe into publish
         shell: pwsh
@@ -49,5 +49,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-logs
-          path: |
-            msbuild.log
+          path: msbuild.log

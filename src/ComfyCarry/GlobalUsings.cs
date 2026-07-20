@@ -1,25 +1,6 @@
-// Global using directives — ComfyCarry
-global using System;
-global using System.Collections.Generic;
-global using System.Collections.ObjectModel;
-global using System.ComponentModel;
-global using System.IO;
-global using System.Linq;
-global using System.Net.Http;
-global using System.Net.Http.Headers;
-global using System.Net.Http.Json;
-global using System.Runtime.CompilerServices;
-global using System.Text;
-global using System.Text.Json;
-global using System.Text.Json.Serialization;
-global using System.Threading;
-global using System.Threading.Tasks;
+// ImplicitUsings=enable 已自动导入 BCL（System/System.IO/System.Linq/System.Collections.Generic 等）。
+// 这里只补 WinUI 与项目内命名空间，避免每个文件重复写。
 global using Microsoft.UI.Xaml;
 global using Microsoft.UI.Xaml.Controls;
-global using Microsoft.UI.Xaml.Media;
-global using Microsoft.UI.Xaml.Navigation;
-global using Windows.ApplicationModel.DataTransfer;
-global using Windows.Storage;
-global using Windows.Storage.Pickers;
 global using ComfyCarry.Models;
 global using ComfyCarry.Services;

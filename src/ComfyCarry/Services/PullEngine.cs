@@ -100,7 +100,7 @@ public sealed class PullEngine
                 if (entry.Stats is not null || entry.Percentage is not null)
                 {
                     int pct = entry.Percentage is { } d ? (int)Math.Round(d) : 0;
-                    long speed = entry.Speed is { } s ? (long)s : (entry.Stats?.Speed ?? 0);
+                    long speed = entry.Speed is { } s ? (long)s : (long)(entry.Stats?.Speed ?? 0);
                     string file = entry.Object ?? entry.Name ?? "";
                     _rules.ReportProgress(file, pct, speed);
                     await _jobs.EventAsync(inst, jobId, new JobEventRequest

@@ -1,7 +1,5 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Windowing;
-using WinRT.Interop;
 using ComfyCarry.Views;
 
 namespace ComfyCarry;
@@ -20,17 +18,28 @@ public sealed partial class MainWindow : Window
         ContentFrame.Navigate(typeof(CloudSetupPage));
         App.Hub.Settings.Changed += () => DispatcherQueue.TryEnqueue(() => { ApplyTheme(); ApplyLanguage(); });
         App.Hub.Instances.Changed += () => DispatcherQueue.TryEnqueue(() => { });
+
+        // 关窗到托盘（SPEC §3.1/§3.2）
+        try
+        {
+            if (AppWindow is not null)
+                AppWindow.Closing += OnWindowClosing;
+        }
+        catch { /* ignore */ }
+    }
+
+    private void OnWindowClosing(Microsoft.UI.Windowing.AppWindow sender, Microsoft.UI.Windowing.AppWindowClosingEventArgs args)
+    {
+        if (App.Hub.Settings.Data.CloseToTray && App.Hub.Tray is not null)
+        {
+            args.Cancel = true;
+            sender.Hide();
+        }
     }
 
     public void RestoreAndActivate()
     {
-        try
-        {
-            var aw = this.GetAppWindow();
-            aw.Show(true);
-            if (aw.Presenter is OverlappedPresenter op) op.Restore();
-        }
-        catch { /* ignore */ }
+        try { AppWindow?.Show(); } catch { }
         this.Activate();
     }
 
@@ -48,10 +57,7 @@ public sealed partial class MainWindow : Window
                 var p = System.Text.Json.JsonSerializer.Deserialize<WindowPlacement>(json);
                 if (p is not null && p.W > 600 && p.H > 400)
                 {
-                    var hwnd = WindowNative.GetWindowHandle(this);
-                    var id = Win32Interop.GetWindowIdFromWindow(hwnd);
-                    var aw = Microsoft.UI.Windowing.AppWindow.GetWindowFromWindowId(id);
-                    aw.MoveAndResize(new Windows.Graphics.RectInt32(p.X, p.Y, p.W, p.H));
+                    AppWindow?.MoveAndResize(new Windows.Graphics.RectInt32(p.X, p.Y, p.W, p.H));
                 }
             }
         }
@@ -62,11 +68,9 @@ public sealed partial class MainWindow : Window
     {
         try
         {
-            var hwnd = WindowNative.GetWindowHandle(this);
-            var id = Win32Interop.GetWindowIdFromWindow(hwnd);
-            var aw = Microsoft.UI.Windowing.AppWindow.GetWindowFromWindowId(id);
-            var r = aw.Position;
-            var s = aw.Size;
+            if (AppWindow is null) return;
+            var r = AppWindow.Position;
+            var s = AppWindow.Size;
             var p = new WindowPlacement { X = r.X, Y = r.Y, W = s.Width, H = s.Height };
             Directory.CreateDirectory(Path.GetDirectoryName(PlacementFile)!);
             File.WriteAllText(PlacementFile, System.Text.Json.JsonSerializer.Serialize(p));
@@ -94,14 +98,6 @@ public sealed partial class MainWindow : Window
     public void ApplyTheme()
     {
         var t = App.Hub.Settings.Data.Theme;
-        try
-        {
-            this.SystemBackdrop = new Microsoft.UI.Composition.SystemBackdrops.MicaBackdrop
-            {
-                Kind = Microsoft.UI.Composition.SystemBackdrops.MicaKind.Base
-            };
-        }
-        catch { /* 老版本 Windows 无 Mica 时忽略 */ }
         RootTheme = t switch
         {
             AppTheme.Light => ElementTheme.Light,

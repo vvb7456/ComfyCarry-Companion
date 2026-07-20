@@ -53,7 +53,7 @@ public sealed partial class RuleEditDialog : ContentDialog
         var picker = new FolderPicker();
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);
         WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
-        picker.SuggestedStartLocation = PickerLocationId.Documents;
+        picker.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
         picker.FileTypeFilter.Add("*");
         var folder = await picker.PickSingleFolderAsync();
         if (folder is not null) LocalPathBox.Text = folder.Path;

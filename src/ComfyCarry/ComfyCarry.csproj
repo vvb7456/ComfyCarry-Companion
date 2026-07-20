@@ -2,45 +2,51 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <TargetFramework>net9.0-windows10.0.19041.0</TargetFramework>
     <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
     <RootNamespace>ComfyCarry</RootNamespace>
+    <AssemblyName>ComfyCarry</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Platforms>x64</Platforms>
-    <Configurations>Debug;Release</Configurations>
-    <UseWinUI>true</UseWinUI>
-    <Nullable>Enable</Nullable>
-    <LangVersion>latest</LangVersion>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <WindowsPackageType>None</WindowsPackageType>
-    <EnableWindowsTargeting>true</EnableWindowsTargeting>
-    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
-    <SelfContained>true</SelfContained>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
-    <EnableMsixTooling>true</EnableMsixTooling>
-    <DefaultLanguage>zh-CN</DefaultLanguage>
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <FileVersion>1.0.0.0</FileVersion>
+    <UseWinUI>true</UseWinUI>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
     <Version>1.0.0</Version>
+    <FileVersion>1.0.0.0</FileVersion>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <DefaultLanguage>zh-CN</DefaultLanguage>
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
   </PropertyGroup>
 
-  <!-- 自包含 publish：dotnet publish -c Release -r win-x64 -p:Platform=x64 -->
+  <!-- Unpackaged self-contained EXE -->
+  <PropertyGroup>
+    <WindowsPackageType>None</WindowsPackageType>
+    <EnableMsixTooling>false</EnableMsixTooling>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <SelfContained>true</SelfContained>
+  </PropertyGroup>
+
   <ItemGroup>
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.250108002" />
-    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.1742" />
-    <PackageReference Include="H.NotifyIcon.WinUI" Version="2.4.1" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.0.1" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.1839" />
+    <PackageReference Include="H.NotifyIcon.WinUI" Version="2.3.2" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="9.0.0" />
+    <PackageReference Include="System.Drawing.Common" Version="9.0.0" />
     <PackageReference Include="Microsoft.Win32.Registry" Version="5.0.0" />
-    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="app.manifest">
+    <Content Include="Assets\app.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+    </Content>
     <None Update="Assets\rclone.exe">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Assets\app.ico">
+    <None Update="app.manifest">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

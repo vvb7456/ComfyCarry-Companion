@@ -163,13 +163,13 @@ public sealed partial class WizardOAuthPage : Page
         }
     }
 
-    private static List<KeyValuePair<string, string>> BuildOptions(CloudTypeDef def)
+    private static Dictionary<string, string> BuildOptions(CloudTypeDef def)
     {
-        var opts = new List<KeyValuePair<string, string>>();
+        var opts = new Dictionary<string, string>();
         foreach (var f in def.Fields)
         {
             if (WizardState.FieldValues.TryGetValue(f.Key, out var v) && !string.IsNullOrEmpty(v))
-                opts.Add(new(f.Key, f.IsSecret ? v : v));
+                opts[f.Key] = v;
         }
         return opts;
     }
