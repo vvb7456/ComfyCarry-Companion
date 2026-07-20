@@ -14,7 +14,8 @@
     <WindowsPackageType>None</WindowsPackageType>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <SelfContained>true</SelfContained>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <UseRidGraph>true</UseRidGraph>
     <EnableMsixTooling>false</EnableMsixTooling>
     <DefaultLanguage>zh-CN</DefaultLanguage>
     <DisableXamlGeneratedEntryPoint>true</DisableXamlGeneratedEntryPoint>
