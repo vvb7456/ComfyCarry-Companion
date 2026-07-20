@@ -20,30 +20,10 @@ jobs:
         run: dotnet restore src/ComfyCarry/ComfyCarry.csproj
 
       - name: Build
-        run: dotnet build src/ComfyCarry/ComfyCarry.csproj -c Release -p:Platform=x64 --no-restore -fl -bl
-        continue-on-error: true
-
-      - name: Run XamlCompiler manually (merged output)
-        if: always()
-        shell: cmd
-        run: |
-          dir "C:\Users\runneradmin\.nuget\packages\microsoft.windowsappsdk.winui\1.8.251105000\tools" /s /b | findstr XamlCompiler.exe
-          set "XC=C:\Users\runneradmin\.nuget\packages\microsoft.windowsappsdk.winui\1.8.251105000\tools\net472\XamlCompiler.exe"
-          set "IN=src\ComfyCarry\obj\x64\Release\net10.0-windows10.0.19041.0\win-x64\input.json"
-          set "OUT=src\ComfyCarry\obj\x64\Release\net10.0-windows10.0.19041.0\win-x64\output2.json"
-          if exist "%XC%" (
-            "%XC%" "%IN%" "%OUT%" 1>xaml_manual_out.txt 2>&1
-            echo XC_EXIT=%ERRORLEVEL%
-            type xaml_manual_out.txt
-          ) else (
-            echo XamlCompiler.exe not found at expected path
-          )
+        run: dotnet build src/ComfyCarry/ComfyCarry.csproj -c Release -p:Platform=x64 --no-restore
 
       - name: Publish (self-contained, unpackaged)
-        run: |
-          dotnet publish src/ComfyCarry/ComfyCarry.csproj -c Release -r win-x64 -p:Platform=x64 -p:WindowsPackageType=None -p:SelfContained=true -o publish --no-build
-        shell: pwsh
-        continue-on-error: true
+        run: dotnet publish src/ComfyCarry/ComfyCarry.csproj -c Release -r win-x64 -p:Platform=x64 -p:WindowsPackageType=None -p:SelfContained=true -o publish --no-build
 
       - name: Download rclone.exe into publish
         shell: pwsh
@@ -52,26 +32,23 @@ jobs:
           Invoke-WebRequest $url -OutFile rclone.zip
           Expand-Archive rclone.zip -DestinationPath rclone-extract -Force
           $exe = Get-ChildItem rclone-extract -Recurse -Filter rclone.exe | Select-Object -First 1
-          if ($exe) {
-            Copy-Item $exe.FullName publish/rclone.exe -Force
-          }
+          if ($exe) { Copy-Item $exe.FullName publish/rclone.exe -Force }
 
       - name: Zip artifact
         shell: pwsh
         run: Compress-Archive -Path publish/* -DestinationPath ComfyCarry-windows-x64.zip -Force
-
-      - name: Upload build logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-logs
-          path: |
-            msbuild.log
-            xaml_manual_out.txt
-            src/ComfyCarry/obj/**/*.json
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ComfyCarry-windows-x64
           path: ComfyCarry-windows-x64.zip
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: |
+            msbuild.log
+            src/ComfyCarry/obj/**/*.json
