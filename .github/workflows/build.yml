@@ -1,0 +1,73 @@
+name: Build Windows
+
+on:
+  push:
+    branches: [main, build/*]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore src/ComfyCarry/ComfyCarry.csproj
+        continue-on-error: true
+
+      - name: Build (capture full log)
+        run: |
+          dotnet build src/ComfyCarry/ComfyCarry.csproj -c Release -p:Platform=x64 2>&1 | Tee-Object -FilePath build.log
+        shell: pwsh
+        continue-on-error: true
+
+      - name: Publish (self-contained, unpackaged)
+        run: |
+          dotnet publish src/ComfyCarry/ComfyCarry.csproj -c Release -r win-x64 -p:WindowsPackageType=None -p:SelfContained=true -o publish 2>&1 | Tee-Object -FilePath publish.log
+        shell: pwsh
+        continue-on-error: true
+
+      - name: Download rclone.exe into publish
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'SilentlyContinue'
+          $url = "https://downloads.rclone.org/rclone-current-windows-amd64.zip"
+          Invoke-WebRequest $url -OutFile rclone.zip
+          Expand-Archive rclone.zip -DestinationPath rclone-extract -Force
+          $exe = Get-ChildItem rclone-extract -Recurse -Filter rclone.exe | Select-Object -First 1
+          if ($exe) {
+            Copy-Item $exe.FullName publish/rclone.exe -Force
+            Write-Host "rclone.exe copied"
+          } else {
+            Write-Host "rclone.exe not found in archive"
+          }
+
+      - name: Zip artifact
+        shell: pwsh
+        run: |
+          if (Test-Path publish) {
+            Compress-Archive -Path publish/* -DestinationPath ComfyCarry-windows-x64.zip -Force
+          }
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: |
+            build.log
+            publish.log
+
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ComfyCarry-windows-x64
+          path: |
+            ComfyCarry-windows-x64.zip
+            src/ComfyCarry/bin/

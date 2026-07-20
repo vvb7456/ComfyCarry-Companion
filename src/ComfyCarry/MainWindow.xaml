@@ -1,0 +1,32 @@
+<Window
+    x:Class="ComfyCarry.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:ComfyCarry.Views"
+    Title="ComfyCarry Companion"
+    MinWidth="960" MinHeight="640">
+    <Grid>
+        <NavigationView
+            x:Name="Nav"
+            PaneDisplayMode="Left"
+            IsBackButtonVisible="Collapsed"
+            IsSettingsVisible="False"
+            SelectionChanged="Nav_SelectionChanged">
+            <NavigationView.MenuItems>
+                <NavigationViewItem Tag="cloud" Icon="Cloud">
+                    <TextBlock x:Name="NavCloudLabel" Text="云存储配置"/>
+                </NavigationViewItem>
+                <NavigationViewItem Tag="pull" Icon="Download">
+                    <TextBlock x:Name="NavPullLabel" Text="产物取回"/>
+                </NavigationViewItem>
+                <NavigationViewItem Tag="settings" Icon="Setting">
+                    <TextBlock x:Name="NavSettingsLabel" Text="设置"/>
+                </NavigationViewItem>
+            </NavigationView.MenuItems>
+            <NavigationView.Header>
+                <TextBlock x:Name="HeaderTitle" Text="ComfyCarry Companion" Style="{ThemeResource SubtitleTextBlockStyle}" Margin="0,8,0,8"/>
+            </NavigationView.Header>
+            <Frame x:Name="ContentFrame" />
+        </NavigationView>
+    </Grid>
+</Window>

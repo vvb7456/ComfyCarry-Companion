@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34330.188
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ComfyCarry", "src\ComfyCarry\ComfyCarry.csproj", "{C0FFEE00-1111-2222-3333-445566778899}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C0FFEE00-1111-2222-3333-445566778899}.Debug|x64.ActiveCfg = Debug|x64
+		{C0FFEE00-1111-2222-3333-445566778899}.Debug|x64.Build.0 = Debug|x64
+		{C0FFEE00-1111-2222-3333-445566778899}.Release|x64.ActiveCfg = Release|x64
+		{C0FFEE00-1111-2222-3333-445566778899}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {BADC0FFE-1234-5678-9ABC-DEF012345678}
+	EndGlobalSection
+EndGlobal
