@@ -35,6 +35,14 @@ public partial class App : Application
         _mainWindow = new MainWindow();
         _mainWindow.Activate();
         _mainWindow.RestoreWindowPlacement();
+        _mainWindow.Closed += (s, e) =>
+        {
+            if (Hub.Settings.Data.CloseToTray && Hub.Tray is not null)
+            {
+                e.Handled = true; // 阻止关闭，改为隐藏
+                _mainWindow.Hide();
+            }
+        };
         Hub.Rules.AttachUi(_mainWindow.DispatcherQueue);
         Hub.Tray = new TrayController(Hub.Locale);
         Hub.Rules.StateChanged += () =>
