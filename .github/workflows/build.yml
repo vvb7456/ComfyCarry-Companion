@@ -26,6 +26,21 @@ jobs:
         shell: pwsh
         continue-on-error: true
 
+      - name: Run XamlCompiler directly to capture errors
+        if: always()
+        shell: pwsh
+        run: |
+          $inputJson = "src/ComfyCarry/obj/x64/Release/net8.0-windows10.0.19041.0/win-x64/input.json"
+          $outputJson = "src/ComfyCarry/obj/x64/Release/net8.0-windows10.0.19041.0/win-x64/output.json"
+          $xc = "C:\Users\runneradmin\.nuget\packages\microsoft.windowsappsdk\1.5.240607001\tools\net472\XamlCompiler.exe"
+          if (Test-Path $inputJson) {
+            & $xc $inputJson $outputJson 2>&1 | Tee-Object -FilePath xamlcompiler.log
+            Write-Host "XamlCompiler exit code: $LASTEXITCODE"
+            if (Test-Path $outputJson) { Get-Content $outputJson }
+          } else {
+            Write-Host "input.json not found"
+          }
+
       - name: Publish (self-contained, unpackaged)
         run: |
           dotnet publish src/ComfyCarry/ComfyCarry.csproj -c Release -r win-x64 -p:Platform=x64 -p:WindowsPackageType=None -p:SelfContained=true -o publish 2>&1 | Tee-Object -FilePath publish.log
@@ -62,6 +77,7 @@ jobs:
           path: |
             build.log
             publish.log
+            xamlcompiler.log
             src/ComfyCarry/obj/**/*.json
             src/ComfyCarry/obj/**/*.txt
 
