@@ -22,13 +22,13 @@ jobs:
 
       - name: Build (capture full log)
         run: |
-          dotnet build src/ComfyCarry/ComfyCarry.csproj -c Release -p:Platform=x64 2>&1 | Tee-Object -FilePath build.log
+          dotnet build src/ComfyCarry/ComfyCarry.csproj -c Release -p:Platform=x64 -v normal 2>&1 | Tee-Object -FilePath build.log
         shell: pwsh
         continue-on-error: true
 
       - name: Publish (self-contained, unpackaged)
         run: |
-          dotnet publish src/ComfyCarry/ComfyCarry.csproj -c Release -r win-x64 -p:WindowsPackageType=None -p:SelfContained=true -o publish 2>&1 | Tee-Object -FilePath publish.log
+          dotnet publish src/ComfyCarry/ComfyCarry.csproj -c Release -r win-x64 -p:Platform=x64 -p:WindowsPackageType=None -p:SelfContained=true -o publish 2>&1 | Tee-Object -FilePath publish.log
         shell: pwsh
         continue-on-error: true
 
