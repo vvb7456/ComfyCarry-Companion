@@ -1,3 +1,4 @@
+using System.Threading;
 using Microsoft.UI.Xaml;
 using ComfyCarry.Services;
 
@@ -6,42 +7,31 @@ namespace ComfyCarry;
 public partial class App : Application
 {
     private static MainWindow? _mainWindow;
-
     public static MainWindow MainWindow => _mainWindow!;
-
     public static ServiceHub Hub { get; } = new();
 
-    private static readonly EventWaitHandle ShowSignal =
-        new(false, EventResetMode.AutoReset, "Global\\ComfyCarryCompanion_Show_3F2A");
+    private static readonly Mutex SingleMutex = new(false, "Global\\ComfyCarryCompanion_Single_3F2A");
 
     public App()
     {
         this.InitializeComponent();
         Hub.Start();
-        _ = Task.Run(ShowSignalLoop);
-    }
-
-    private static async Task ShowSignalLoop()
-    {
-        while (true)
-        {
-            ShowSignal.WaitOne();
-            var mw = _mainWindow;
-            if (mw is not null)
-            {
-                var tcs = new TaskCompletionSource();
-                mw.DispatcherQueue.TryEnqueue(() =>
-                {
-                    ShowMainWindow();
-                    tcs.SetResult();
-                });
-                await tcs.Task;
-            }
-        }
     }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
+        // 单实例：已有实例在跑则直接退出（简化版，不做跨进程唤起）
+        try
+        {
+            if (!SingleMutex.WaitOne(0, false))
+            {
+                // 已有实例，本进程退出
+                Environment.Exit(0);
+                return;
+            }
+        }
+        catch { /* ignore */ }
+
         _mainWindow = new MainWindow();
         _mainWindow.Activate();
         _mainWindow.RestoreWindowPlacement();
@@ -70,4 +60,3 @@ public partial class App : Application
         }
     }
 }
-
