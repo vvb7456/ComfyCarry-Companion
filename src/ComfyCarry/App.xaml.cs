@@ -40,7 +40,7 @@ public partial class App : Application
             if (Hub.Settings.Data.CloseToTray && Hub.Tray is not null)
             {
                 e.Handled = true; // 阻止关闭，改为隐藏
-                _mainWindow.Hide();
+                try { _mainWindow.GetAppWindow().Hide(); } catch { }
             }
         };
         Hub.Rules.AttachUi(_mainWindow.DispatcherQueue);

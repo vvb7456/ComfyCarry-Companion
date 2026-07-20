@@ -27,12 +27,11 @@ public sealed partial class MainWindow : Window
         try
         {
             var aw = this.GetAppWindow();
+            aw.Show(true);
             if (aw.Presenter is OverlappedPresenter op) op.Restore();
         }
         catch { /* ignore */ }
-        this.Show();
         this.Activate();
-        try { this.GetAppWindow().Show(true); } catch { }
     }
 
     private static readonly string PlacementFile = Path.Combine(
