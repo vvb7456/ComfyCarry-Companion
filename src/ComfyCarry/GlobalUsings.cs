@@ -21,6 +21,5 @@ global using Microsoft.UI.Xaml.Navigation;
 global using Windows.ApplicationModel.DataTransfer;
 global using Windows.Storage;
 global using Windows.Storage.Pickers;
-global using Windows.System;
 global using ComfyCarry.Models;
 global using ComfyCarry.Services;

@@ -3,7 +3,6 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Windows.Storage.Pickers;
 using Windows.Storage;
-using Windows.System;
 using ComfyCarry.Services;
 
 namespace ComfyCarry.Views.Wizard;

@@ -57,17 +57,3 @@ public sealed partial class CloudSetupPage : Page
     }
 }
 
-namespace ComfyCarry.Views.Wizard
-{
-    public static class WizardState
-    {
-        // 整个向导的共享状态
-        public static CloudType SelectedCloud { get; set; } = CloudType.OneDrivePersonal;
-        public static string RemoteName { get; set; } = "";
-        public static string Proxy { get; set; } = "";
-        public static Dictionary<string, string> FieldValues { get; } = new();
-        public static RcloneConfigState? LastState { get; set; }
-        public static string TempConfPath { get; set; } = "";
-        public static bool TestedOk { get; set; }
-    }
-}

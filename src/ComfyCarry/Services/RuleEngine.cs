@@ -13,7 +13,7 @@ public sealed class RuleEngine
     private readonly CompanionApiClient _api;
     private readonly JobReporter _jobs;
     private readonly object _lock = new();
-    private DispatcherQueue? _uiQueue;
+    private Microsoft.UI.Dispatching.DispatcherQueue? _uiQueue;
 
     public ObservableCollection<PullRule> Rules { get; } = new();
     public ObservableCollection<PullRule> Templates { get; } = new();
@@ -34,7 +34,7 @@ public sealed class RuleEngine
     }
 
     /// <summary>在 UI 线程被激活后注入 DispatcherQueue，确保集合修改在 UI 线程。</summary>
-    public void AttachUi(DispatcherQueue queue) => _uiQueue = queue;
+    public void AttachUi(Microsoft.UI.Dispatching.DispatcherQueue queue) => _uiQueue = queue;
 
     private void Ui(Action a)
     {
