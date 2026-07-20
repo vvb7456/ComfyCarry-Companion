@@ -62,6 +62,8 @@ jobs:
           path: |
             build.log
             publish.log
+            src/ComfyCarry/obj/**/*.json
+            src/ComfyCarry/obj/**/*.txt
 
       - name: Upload artifact
         if: always()

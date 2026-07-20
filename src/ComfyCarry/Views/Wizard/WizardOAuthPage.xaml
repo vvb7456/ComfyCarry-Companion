@@ -9,13 +9,13 @@
                    Text="点击下方按钮，rclone 会自动打开浏览器完成 OAuth 授权（在浏览器里登录你的账号即可）。授权完成后会自动继续。"/>
         <ProgressRing x:Name="Busy" IsActive="False" Width="40" Height="40"/>
         <TextBlock x:Name="Status" TextWrapping="Wrap"/>
-        <ItemsControl x:Name="ChoicesList" Visibility="Collapsed">
-            <ItemsControl.ItemTemplate>
+        <ListView x:Name="ChoicesList" Visibility="Collapsed" SelectionMode="None" IsItemClickEnabled="False">
+            <ListView.ItemTemplate>
                 <DataTemplate x:DataType="local:ConfigChoiceVM">
                     <RadioButton Content="{x:Bind Label}" Tag="{x:Bind Id}" Click="Choice_Click"/>
                 </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
+            </ListView.ItemTemplate>
+        </ListView>
         <StackPanel Orientation="Horizontal" Spacing="8">
             <Button x:Name="BackBtn" Click="Back_Click" Content="上一步"/>
             <Button x:Name="AuthorizeBtn" Click="Authorize_Click" Style="{ThemeResource AccentButtonStyle}" Content="开始授权"/>
