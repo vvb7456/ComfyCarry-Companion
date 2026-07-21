@@ -9,25 +9,25 @@
     <ScrollViewer MaxHeight="560" VerticalScrollBarVisibility="Auto">
         <StackPanel Spacing="10" Width="520">
             <TextBox x:Name="NameBox" Header="名称"/>
-            <TextBox x:Name="RemotePathBox" Header="远端子路径（相对 output 根，空=根）" PlaceholderText="例：子文件夹，留空取 output 根"/>
-            <StackPanel Orientation="Horizontal" Spacing="8">
-                <Button x:Name="BrowseBtn" Click="Browse_Click" Content="浏览…"/>
-                <TextBox x:Name="LocalPathBox" Header="本机目标文件夹" PlaceholderText="D:\ComfyCarry\out\" Width="380"/>
-            </StackPanel>
-            <ComboBox x:Name="MethodBox" Header="方式" Width="240">
+            <TextBox x:Name="RemotePathBox" Header="远程子文件夹（留空=根目录）" PlaceholderText="例：子文件夹，留空取 output 根"/>
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <TextBox x:Name="LocalPathBox" Grid.Column="0" Header="本机目标文件夹" PlaceholderText="D:\ComfyCarry\out\" HorizontalAlignment="Stretch"/>
+                <Button x:Name="BrowseBtn" Grid.Column="1" Click="Browse_Click" Content="浏览…" VerticalAlignment="Bottom"/>
+            </Grid>
+            <ComboBox x:Name="MethodBox" Header="方式" HorizontalAlignment="Stretch">
                 <x:String>copy</x:String>
                 <x:String>move</x:String>
                 <x:String>sync</x:String>
             </ComboBox>
-            <TextBox x:Name="FiltersBox" Header="过滤器（扩展名，空格分隔）" PlaceholderText="png jpg jpeg mp4"/>
-            <ComboBox x:Name="TriggerBox" Header="触发" Width="200">
+            <TextBox x:Name="FiltersBox" Header="文件类型（扩展名，空格分隔）" PlaceholderText="png jpg jpeg mp4"/>
+            <ComboBox x:Name="TriggerBox" Header="触发" HorizontalAlignment="Stretch">
                 <x:String>watch</x:String>
                 <x:String>manual</x:String>
             </ComboBox>
-            <NumberBox x:Name="IntervalBox" Header="间隔（秒）" Minimum="30" Maximum="86400" Value="300" Width="200"/>
+            <NumberBox x:Name="IntervalBox" Header="间隔（秒）" Minimum="30" Maximum="86400" Value="300" HorizontalAlignment="Stretch"/>
             <ToggleSwitch x:Name="EnabledSwitch" Header="启用" IsOn="True"/>
-            <TextBlock x:Name="MoveWarn" Foreground="OrangeRed" TextWrapping="Wrap"
-                       Text="注意：move 会在拉取完成后删除实例源文件（范围仅限 output/）。" Visibility="Collapsed"/>
+            <TextBlock x:Name="MoveWarn" Foreground="{ThemeResource SystemFillColorCriticalBrush}" TextWrapping="Wrap"
+                       Text="移动方式会在取回后删除远程原文件。" Visibility="Collapsed"/>
         </StackPanel>
     </ScrollViewer>
 </ContentDialog>

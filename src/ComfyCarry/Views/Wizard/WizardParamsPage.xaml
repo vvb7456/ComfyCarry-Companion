@@ -6,8 +6,8 @@
         <TextBlock x:Name="Lbl" Text="填写参数" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
         <StackPanel x:Name="FieldsPanel" Spacing="12"/>
         <InfoBar x:Name="OAuthInfo" Severity="Informational" IsOpen="False"
-                 Title="此云类型需要浏览器授权"
-                 Message="无需在此填写 token，下一步会让 rclone 自动打开浏览器完成 OAuth。"/>
+                 Title="需要浏览器授权"
+                 Message="下一步将打开浏览器完成登录。"/>
         <StackPanel Orientation="Horizontal" Spacing="8">
             <Button x:Name="BackBtn" Click="Back_Click" Content="上一步"/>
             <Button x:Name="NextBtn" Click="Next_Click" Style="{ThemeResource AccentButtonStyle}" Content="下一步"/>

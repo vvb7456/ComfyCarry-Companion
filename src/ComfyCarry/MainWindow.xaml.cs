@@ -51,14 +51,28 @@ public sealed partial class MainWindow : Window
     {
         try
         {
-            if (File.Exists(PlacementFile))
+            if (AppWindow?.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter)
             {
-                var json = File.ReadAllText(PlacementFile);
-                var p = System.Text.Json.JsonSerializer.Deserialize<WindowPlacement>(json);
-                if (p is not null && p.W > 600 && p.H > 400)
-                {
-                    AppWindow?.MoveAndResize(new Windows.Graphics.RectInt32(p.X, p.Y, p.W, p.H));
-                }
+                presenter.PreferredMinimumWidth = 860;
+                presenter.PreferredMinimumHeight = 560;
+            }
+
+            WindowPlacement? p = null;
+            if (File.Exists(PlacementFile))
+                p = System.Text.Json.JsonSerializer.Deserialize<WindowPlacement>(File.ReadAllText(PlacementFile));
+
+            if (p is not null && p.W >= 860 && p.H >= 560)
+            {
+                AppWindow?.MoveAndResize(new Windows.Graphics.RectInt32(p.X, p.Y, p.W, p.H));
+            }
+            else if (AppWindow is not null)
+            {
+                const int w = 1100, h = 720;
+                var area = Microsoft.UI.Windowing.DisplayArea.GetFromWindowId(AppWindow.Id, Microsoft.UI.Windowing.DisplayAreaFallback.Primary);
+                var wa = area.WorkArea;
+                int x = wa.X + System.Math.Max(0, (wa.Width - w) / 2);
+                int y = wa.Y + System.Math.Max(0, (wa.Height - h) / 2);
+                AppWindow.MoveAndResize(new Windows.Graphics.RectInt32(x, y, w, h));
             }
         }
         catch { /* ignore */ }
@@ -89,7 +103,6 @@ public sealed partial class MainWindow : Window
                 "settings" => typeof(SettingsPage),
                 _ => typeof(CloudSetupPage),
             };
-            HeaderTitle.Text = tag switch { "cloud" => L.T("nav.cloud"), "pull" => L.T("nav.pull"), _ => L.T("nav.settings") };
             ContentFrame.Navigate(page);
             App.Hub.Settings.Update(s => s.LastTab = tag);
         }

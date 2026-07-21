@@ -6,7 +6,7 @@
     <StackPanel Spacing="16" Padding="0,16,0,16">
         <TextBlock x:Name="Lbl" Text="授权" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
         <TextBlock x:Name="Hint" TextWrapping="Wrap" Opacity="0.8"
-                   Text="点击下方按钮，rclone 会自动打开浏览器完成 OAuth 授权（在浏览器里登录你的账号即可）。授权完成后会自动继续。"/>
+                   Text="点击开始授权，在浏览器中登录你的账号，完成后自动继续。"/>
         <ProgressRing x:Name="Busy" IsActive="False" Width="40" Height="40"/>
         <TextBlock x:Name="Status" TextWrapping="Wrap"/>
         <ListView x:Name="ChoicesList" Visibility="Collapsed" SelectionMode="None" IsItemClickEnabled="False">

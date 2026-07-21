@@ -31,7 +31,7 @@ public sealed partial class SettingsPage : Page
         ThemeLight.Content = L.T("settings.theme.light");
         ThemeDark.Content = L.T("settings.theme.dark");
         AutoStartSwitch.Header = L.T("settings.autostart");
-        CloseToTraySwitch.Header = L.T("tray.show");
+        CloseToTraySwitch.Header = L.T("settings.closeToTray");
         AboutHeader.Text = L.T("settings.about");
         VersionLine.Text = $"{L.T("settings.about.version")}: 1.0.0";
     }

@@ -5,7 +5,7 @@
     <StackPanel Spacing="16" Padding="0,16,0,16">
         <TextBlock x:Name="Lbl" Text="建标准目录树（可选）" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
         <TextBlock x:Name="Hint" TextWrapping="Wrap" Opacity="0.7"
-                   Text="标准目录树：models / loras / checkpoints / output 等（与面板约定一致）。"/>
+                   Text="创建常用目录：models、loras、checkpoints、output 等。"/>
         <ToggleSwitch x:Name="DoTree" Header="创建标准目录树" IsOn="True"/>
         <Button x:Name="RunBtn" Click="Run_Click" Style="{ThemeResource AccentButtonStyle}" Content="创建"/>
         <ProgressRing x:Name="Busy" IsActive="False" Width="40" Height="40"/>

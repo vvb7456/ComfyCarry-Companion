@@ -21,7 +21,7 @@ public sealed partial class CloudSetupPage : Page
     {
         TitleText.Text = L.T("cloud.title");
         IntroText.Text = L.T("cloud.intro");
-        StartBtnLabel.Text = L.T("common.add");
+        StartBtnLabel.Text = L.T("cloud.newRemote");
         S1Label.Text = L.T("cloud.step.type");
         S2Label.Text = L.T("cloud.step.params");
         S3Label.Text = L.T("cloud.step.oauth");

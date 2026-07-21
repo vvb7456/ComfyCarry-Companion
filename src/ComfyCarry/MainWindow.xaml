@@ -31,9 +31,6 @@
                     <TextBlock x:Name="NavSettingsLabel" Text="设置"/>
                 </NavigationViewItem>
             </NavigationView.MenuItems>
-            <NavigationView.Header>
-                <TextBlock x:Name="HeaderTitle" Text="ComfyCarry Companion" Style="{ThemeResource SubtitleTextBlockStyle}" Margin="0,8,0,8"/>
-            </NavigationView.Header>
             <Frame x:Name="ContentFrame" />
         </NavigationView>
     </Grid>

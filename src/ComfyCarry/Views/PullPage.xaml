@@ -9,9 +9,9 @@
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Padding="36,16,36,8">
             <StackPanel Orientation="Horizontal" Spacing="8">
                 <ComboBox x:Name="InstanceBox" Header="实例" Width="280" SelectionChanged="Instance_SelectionChanged"/>
-                <Button x:Name="ConnectBtn" Click="Connect_Click" Content="连接实例"/>
+                <Button x:Name="ConnectBtn" Click="Connect_Click" Content="连接实例" VerticalAlignment="Bottom"/>
             </StackPanel>
-            <Button x:Name="RefreshBtn" Grid.Column="1" Click="Refresh_Click" Content="刷新"/>
+            <Button x:Name="RefreshBtn" Grid.Column="1" Click="Refresh_Click" Content="刷新" VerticalAlignment="Bottom"/>
         </Grid>
 
         <!-- 介绍 + 总进度 -->
@@ -44,9 +44,9 @@
                                 <ProgressBar Grid.Row="2" Grid.Column="0" Value="{x:Bind Progress}" Maximum="100" Width="320" HorizontalAlignment="Left"/>
                                 <StackPanel Grid.RowSpan="3" Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                                     <TextBlock Text="{x:Bind StatusText}" VerticalAlignment="Center" Opacity="0.7" FontSize="12"/>
-                                    <Button Content="立即拉取" Tag="{x:Bind RuleId}" Click="RunOnce_Click" Padding="6,2"/>
-                                    <Button Content="编辑" Tag="{x:Bind RuleId}" Click="EditRule_Click" Padding="6,2"/>
-                                    <Button Content="打开文件夹" Tag="{x:Bind LocalPath}" Click="OpenFolder_Click" Padding="6,2"/>
+                                    <Button Content="立即拉取" Tag="{x:Bind RuleId}" Click="RunOnce_Click" Padding="8,4"/>
+                                    <Button Content="编辑" Tag="{x:Bind RuleId}" Click="EditRule_Click" Padding="8,4"/>
+                                    <Button Content="打开文件夹" Tag="{x:Bind LocalPath}" Click="OpenFolder_Click" Padding="8,4"/>
                                 </StackPanel>
                             </Grid>
                         </DataTemplate>

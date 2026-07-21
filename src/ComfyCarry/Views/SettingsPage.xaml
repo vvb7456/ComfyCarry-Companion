@@ -20,8 +20,8 @@
                                     <TextBlock Text="{x:Bind BaseUrl}" Opacity="0.7" FontSize="12"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                                    <Button Content="设为当前" Tag="{x:Bind Id}" Click="SetCurrent_Click" Padding="6,2"/>
-                                    <Button Content="删除" Tag="{x:Bind Id}" Click="DeleteInstance_Click" Padding="6,2"/>
+                                    <Button Content="设为当前" Tag="{x:Bind Id}" Click="SetCurrent_Click" Padding="8,4"/>
+                                    <Button Content="删除" Tag="{x:Bind Id}" Click="DeleteInstance_Click" Padding="8,4"/>
                                 </StackPanel>
                             </Grid>
                         </DataTemplate>
@@ -58,7 +58,7 @@
             <StackPanel Spacing="4">
                 <TextBlock x:Name="AboutHeader" Text="关于" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
                 <TextBlock x:Name="VersionLine"/>
-                <TextBlock Opacity="0.7" TextWrapping="Wrap" Text="ComfyCarry Companion — 把 ComfyUI 产物取回本机的 Windows 桌面客户端。不使用 Electron，基于 WinUI 3 / .NET 8。"/>
+                <TextBlock Opacity="0.7" TextWrapping="Wrap" Text="ComfyCarry Companion — 把 ComfyUI 产物取回本机的桌面工具。"/>
             </StackPanel>
         </StackPanel>
     </ScrollViewer>

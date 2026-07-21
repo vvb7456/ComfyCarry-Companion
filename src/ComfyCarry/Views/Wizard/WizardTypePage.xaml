@@ -5,24 +5,12 @@
     <StackPanel Spacing="16" Padding="0,16,0,16">
         <TextBlock x:Name="Lbl" Text="选择云类型" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
         <RadioButtons x:Name="TypeRadios" MaxColumns="1" SelectionChanged="Type_SelectionChanged"/>
-        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
-            <Grid RowDefinitions="Auto,Auto" RowSpacing="4">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock x:Name="NameLabel" Grid.Row="0" Grid.Column="0" Text="Remote 名称" VerticalAlignment="Center"/>
-                <TextBox x:Name="NameBox" Grid.Row="0" Grid.Column="1" PlaceholderText="my-onedrive" Width="280"
-                         TextChanged="Name_TextChanged"/>
-                <TextBlock x:Name="NameErr" Grid.Row="1" Grid.Column="1" Foreground="OrangeRed" Visibility="Collapsed"/>
-            </Grid>
-        </Grid>
-        <StackPanel Spacing="4">
-            <TextBlock x:Name="ProxyLabel" Text="代理（可选）"/>
-            <TextBox x:Name="ProxyBox" PlaceholderText="http://127.0.0.1:7890" Width="360"
-                     TextChanged="Proxy_TextChanged"/>
-            <TextBlock x:Name="ProxyHint" Opacity="0.6" TextWrapping="Wrap" Text="形如 http://127.0.0.1:7890，作为 rclone 子进程的 HTTP_PROXY/HTTPS_PROXY。"/>
-        </StackPanel>
+        <TextBox x:Name="NameBox" Header="Remote 名称" PlaceholderText="my-onedrive" MaxWidth="360" HorizontalAlignment="Left"
+                 TextChanged="Name_TextChanged"/>
+        <TextBlock x:Name="NameErr" Foreground="{ThemeResource SystemFillColorCriticalBrush}" Visibility="Collapsed"/>
+        <TextBox x:Name="ProxyBox" Header="代理（可选）" PlaceholderText="http://127.0.0.1:7890" MaxWidth="360" HorizontalAlignment="Left"
+                 TextChanged="Proxy_TextChanged"/>
+        <TextBlock x:Name="ProxyHint" Opacity="0.6" TextWrapping="Wrap" Text="如需代理请填写，例如 http://127.0.0.1:7890。"/>
         <Button x:Name="NextBtn" Click="Next_Click" Style="{ThemeResource AccentButtonStyle}" Content="下一步"/>
     </StackPanel>
 </Page>

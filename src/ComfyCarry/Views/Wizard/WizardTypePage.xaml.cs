@@ -32,8 +32,8 @@ public sealed partial class WizardTypePage : Page
     private void Localize()
     {
         Lbl.Text = L.T("cloud.step.type");
-        NameLabel.Text = L.T("cloud.remoteName");
-        ProxyLabel.Text = L.T("cloud.proxy");
+        NameBox.Header = L.T("cloud.remoteName");
+        ProxyBox.Header = L.T("cloud.proxy");
         ProxyHint.Text = L.T("cloud.proxy.hint");
         NextBtn.Content = L.T("common.ok");
     }
