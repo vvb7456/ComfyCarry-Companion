@@ -16,14 +16,20 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v2
-
       - name: Restore
-        run: msbuild src/ComfyCarry/ComfyCarry.csproj /t:Restore /p:Configuration=Release /p:Platform=x64
+        run: dotnet restore src/ComfyCarry/ComfyCarry.csproj
 
       - name: Publish (self-contained, unpackaged)
-        run: msbuild src/ComfyCarry/ComfyCarry.csproj /t:Publish /p:Configuration=Release /p:Platform=x64 /p:WindowsPackageType=None /p:SelfContained=true /p:RuntimeIdentifier=win-x64 /p:PublishDir=../../publish -fl -v:minimal
+        shell: pwsh
+        run: |
+          dotnet publish src/ComfyCarry/ComfyCarry.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained true `
+            /p:WindowsAppSdkSelfContained=true `
+            /p:PublishSingleFile=false `
+            /p:EnableMsixTooling=true `
+            -o publish
 
       - name: Download rclone.exe into publish
         shell: pwsh
@@ -43,10 +49,3 @@ jobs:
         with:
           name: ComfyCarry-windows-x64
           path: ComfyCarry-windows-x64.zip
-
-      - name: Upload build logs on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-logs
-          path: msbuild.log

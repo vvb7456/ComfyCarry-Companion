@@ -22,12 +22,11 @@
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
   </PropertyGroup>
 
-  <!-- Unpackaged self-contained EXE -->
+  <!-- Unpackaged EXE. EnableMsixTooling=false 防止非打包 debug/run 构建的 resources.pri 不匹配。
+       self-contained 仅在 CI publish 时通过 /p:WindowsAppSdkSelfContained=true 注入。 -->
   <PropertyGroup>
     <WindowsPackageType>None</WindowsPackageType>
     <EnableMsixTooling>false</EnableMsixTooling>
-    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
-    <SelfContained>true</SelfContained>
   </PropertyGroup>
 
   <ItemGroup>
