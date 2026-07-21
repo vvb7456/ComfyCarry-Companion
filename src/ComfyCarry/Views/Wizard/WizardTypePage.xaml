@@ -2,15 +2,20 @@
     x:Class="ComfyCarry.Views.Wizard.WizardTypePage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <StackPanel Spacing="16" Padding="0,16,0,16">
-        <TextBlock x:Name="Lbl" Text="选择云类型" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
-        <RadioButtons x:Name="TypeRadios" MaxColumns="1" SelectionChanged="Type_SelectionChanged"/>
-        <TextBox x:Name="NameBox" Header="Remote 名称" PlaceholderText="my-onedrive" MaxWidth="360" HorizontalAlignment="Left"
-                 TextChanged="Name_TextChanged"/>
-        <TextBlock x:Name="NameErr" Foreground="{ThemeResource SystemFillColorCriticalBrush}" Visibility="Collapsed"/>
-        <TextBox x:Name="ProxyBox" Header="代理（可选）" PlaceholderText="http://127.0.0.1:7890" MaxWidth="360" HorizontalAlignment="Left"
-                 TextChanged="Proxy_TextChanged"/>
-        <TextBlock x:Name="ProxyHint" Opacity="0.6" TextWrapping="Wrap" Text="如需代理请填写，例如 http://127.0.0.1:7890。"/>
-        <Button x:Name="NextBtn" Click="Next_Click" Style="{ThemeResource AccentButtonStyle}" Content="下一步"/>
-    </StackPanel>
+    <ScrollViewer Padding="24,24,24,24" VerticalScrollBarVisibility="Auto">
+        <StackPanel MaxWidth="720" Spacing="16" HorizontalAlignment="Left">
+            <TextBlock x:Name="Lbl" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+
+            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1" CornerRadius="8" Padding="20">
+                <RadioButtons x:Name="TypeRadios" MaxColumns="1" SelectionChanged="Type_SelectionChanged"/>
+            </Border>
+
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button x:Name="CancelBtn" Click="Cancel_Click"/>
+                <Button x:Name="NextBtn" Click="Next_Click" Style="{ThemeResource AccentButtonStyle}"/>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
 </Page>

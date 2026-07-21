@@ -1,22 +1,19 @@
-using System.Text.RegularExpressions;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using ComfyCarry.Services;
+using ComfyCarry.Views;
 
 namespace ComfyCarry.Views.Wizard;
 
 public sealed partial class WizardTypePage : Page
 {
     private LocalizationService L => App.Hub.Locale;
-    private static readonly Regex NameRegex = new("^[a-zA-Z0-9_-]+$", RegexOptions.Compiled);
 
     public WizardTypePage()
     {
         this.InitializeComponent();
         LoadRadios();
         Localize();
-        NameBox.Text = WizardState.RemoteName;
-        ProxyBox.Text = WizardState.Proxy;
     }
 
     private void LoadRadios()
@@ -27,15 +24,14 @@ public sealed partial class WizardTypePage : Page
             var rb = new RadioButton { Content = def.DisplayName, Tag = def, IsChecked = def.Type == WizardState.SelectedCloud };
             TypeRadios.Items.Add(rb);
         }
+        UpdateNextEnabled();
     }
 
     private void Localize()
     {
         Lbl.Text = L.T("cloud.step.type");
-        NameBox.Header = L.T("cloud.remoteName");
-        ProxyBox.Header = L.T("cloud.proxy");
-        ProxyHint.Text = L.T("cloud.proxy.hint");
-        NextBtn.Content = L.T("common.ok");
+        CancelBtn.Content = L.T("common.cancel");
+        NextBtn.Content = L.T("common.next");
     }
 
     private void Type_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -44,33 +40,23 @@ public sealed partial class WizardTypePage : Page
         {
             WizardState.SelectedCloud = def.Type;
         }
+        UpdateNextEnabled();
     }
 
-    private void Name_TextChanged(object sender, TextChangedEventArgs e)
+    private void UpdateNextEnabled()
     {
-        var name = NameBox.Text.Trim();
-        WizardState.RemoteName = name;
-        bool ok = name.Length > 0 && NameRegex.IsMatch(name);
-        NameErr.Visibility = ok ? Visibility.Collapsed : Visibility.Visible;
-        NameErr.Text = ok ? "" : "仅允许 a-z A-Z 0-9 _ -";
-        NextBtn.IsEnabled = ok;
+        NextBtn.IsEnabled = TypeRadios.SelectedItem is RadioButton rb && rb.Tag is CloudTypeDef;
     }
 
-    private void Proxy_TextChanged(object sender, TextChangedEventArgs e)
+    private void Cancel_Click(object sender, RoutedEventArgs e)
     {
-        WizardState.Proxy = ProxyBox.Text.Trim();
+        this.Frame?.Navigate(typeof(CloudHomePage));
     }
 
-    private async void Next_Click(object sender, RoutedEventArgs e)
+    private void Next_Click(object sender, RoutedEventArgs e)
     {
-        // 准备临时 conf 路径
-        var tempConf = Path.Combine(App.Hub.Paths.TempConfDir, $"wizard-{Guid.NewGuid():N}.conf");
-        WizardState.TempConfPath = tempConf;
-        // 跳到下一步（导航栏）
-        if (this.Frame?.Parent is Frame f && f.Parent is NavigationView nv)
-        {
-            var items = nv.MenuItems.OfType<NavigationViewItem>().ToList();
-            nv.SelectedItem = items.ElementAtOrDefault(1); // t_params
-        }
+        // 命名/配置页会用到临时 conf，这里先准备好
+        WizardState.EnsureTempConf();
+        this.Frame?.Navigate(typeof(WizardNamePage));
     }
 }

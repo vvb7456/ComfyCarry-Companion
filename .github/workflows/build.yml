@@ -40,12 +40,21 @@ jobs:
           $exe = Get-ChildItem rclone-extract -Recurse -Filter rclone.exe | Select-Object -First 1
           if ($exe) { Copy-Item $exe.FullName publish/rclone.exe -Force }
 
-      - name: Zip artifact
+      - name: Write usage notes
         shell: pwsh
-        run: Compress-Archive -Path publish/* -DestinationPath ComfyCarry-windows-x64.zip -Force
+        run: |
+          $content = @(
+            "ComfyCarry Companion 使用说明",
+            "",
+            "双击 ComfyCarry.exe 即可运行。",
+            "应用目录下的其余文件为运行依赖，请勿删除。",
+            "",
+            "如需配置云盘，进入「云存储配置」按向导操作即可。"
+          ) -join "`r`n"
+          [System.IO.File]::WriteAllText("publish/使用说明.txt", $content, [System.Text.UTF8Encoding]::new($true))
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ComfyCarry-windows-x64
-          path: ComfyCarry-windows-x64.zip
+          path: publish

@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using ComfyCarry.Views;
@@ -12,6 +13,7 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         this.InitializeComponent();
+        SetupTitleBar();
         ApplyTheme();
         ApplyLanguage();
         Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First();
@@ -24,6 +26,22 @@ public sealed partial class MainWindow : Window
         {
             if (AppWindow is not null)
                 AppWindow.Closing += OnWindowClosing;
+        }
+        catch { /* ignore */ }
+    }
+
+    private void SetupTitleBar()
+    {
+        try
+        {
+            this.ExtendsContentIntoTitleBar = true;
+            this.SetTitleBar(AppTitleBar);
+            // 系统三键背景透明，与标题栏融合
+            if (AppWindow?.TitleBar is { } tb)
+            {
+                tb.ButtonBackgroundColor = Microsoft.UI.Colors.Transparent;
+                tb.ButtonInactiveBackgroundColor = Microsoft.UI.Colors.Transparent;
+            }
         }
         catch { /* ignore */ }
     }
@@ -47,32 +65,50 @@ public sealed partial class MainWindow : Window
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "ComfyCarry", "placement.json");
 
+    [DllImport("user32.dll")]
+    private static extern uint GetDpiForWindow(IntPtr hwnd);
+
     public void RestoreWindowPlacement()
     {
         try
         {
+            // 目标逻辑尺寸 1060x700 DIP，最小 920x620 DIP，按窗口 DPI 换算物理像素
+            double scale = 1.0;
+            try
+            {
+                var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+                var dpi = GetDpiForWindow(hwnd);
+                if (dpi > 0) scale = dpi / 96.0;
+            }
+            catch { /* ignore */ }
+            if (scale <= 0) scale = 1.0;
+
+            int defW = (int)(1060 * scale);
+            int defH = (int)(700 * scale);
+            int minW = (int)(920 * scale);
+            int minH = (int)(620 * scale);
+
             if (AppWindow?.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter)
             {
-                presenter.PreferredMinimumWidth = 860;
-                presenter.PreferredMinimumHeight = 560;
+                presenter.PreferredMinimumWidth = minW;
+                presenter.PreferredMinimumHeight = minH;
             }
 
             WindowPlacement? p = null;
             if (File.Exists(PlacementFile))
                 p = System.Text.Json.JsonSerializer.Deserialize<WindowPlacement>(File.ReadAllText(PlacementFile));
 
-            if (p is not null && p.W >= 860 && p.H >= 560)
+            if (p is not null && p.W >= 600 && p.H >= 600)
             {
                 AppWindow?.MoveAndResize(new Windows.Graphics.RectInt32(p.X, p.Y, p.W, p.H));
             }
             else if (AppWindow is not null)
             {
-                const int w = 1100, h = 720;
                 var area = Microsoft.UI.Windowing.DisplayArea.GetFromWindowId(AppWindow.Id, Microsoft.UI.Windowing.DisplayAreaFallback.Primary);
                 var wa = area.WorkArea;
-                int x = wa.X + System.Math.Max(0, (wa.Width - w) / 2);
-                int y = wa.Y + System.Math.Max(0, (wa.Height - h) / 2);
-                AppWindow.MoveAndResize(new Windows.Graphics.RectInt32(x, y, w, h));
+                int x = wa.X + System.Math.Max(0, (wa.Width - defW) / 2);
+                int y = wa.Y + System.Math.Max(0, (wa.Height - defH) / 2);
+                AppWindow.MoveAndResize(new Windows.Graphics.RectInt32(x, y, defW, defH));
             }
         }
         catch { /* ignore */ }
@@ -130,6 +166,7 @@ public sealed partial class MainWindow : Window
         NavCloudLabel.Text = L.T("nav.cloud");
         NavPullLabel.Text = L.T("nav.pull");
         NavSettingsLabel.Text = L.T("nav.settings");
+        AppTitleText.Text = L.T("app.title");
         Title = L.T("app.title");
     }
 }

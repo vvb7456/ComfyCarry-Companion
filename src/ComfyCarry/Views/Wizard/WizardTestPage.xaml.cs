@@ -12,12 +12,15 @@ public sealed partial class WizardTestPage : Page
     {
         this.InitializeComponent();
         Localize();
+        NextBtn.IsEnabled = WizardState.TestedOk;
     }
 
     private void Localize()
     {
         Lbl.Text = L.T("cloud.step.test");
         TestBtn.Content = L.T("common.test");
+        BackBtn.Content = L.T("common.back");
+        NextBtn.Content = L.T("common.next");
     }
 
     private async void Test_Click(object sender, RoutedEventArgs e)
@@ -27,26 +30,19 @@ public sealed partial class WizardTestPage : Page
         Result.Text = L.T("cloud.test.running");
         try
         {
-            var (ok, msg) = await App.Hub.Rclone.LsdAsync(WizardState.TempConfPath, WizardState.RemoteName, WizardState.Proxy);
+            var (ok, msg) = await App.Hub.Rclone.LsdAsync(
+                WizardState.TempConfPath, WizardState.RemoteName, App.Hub.Settings.Data.Proxy);
             WizardState.TestedOk = ok;
-            Result.Text = ok ? "成功 ✓\n" + msg : "失败 ✗\n" + msg;
-            NextBtn.IsEnabled = true;
+            Result.Text = ok ? $"{L.T("cloud.test.ok")}\n{msg}" : $"{L.T("cloud.test.fail")}\n{msg}";
+            NextBtn.IsEnabled = ok;
         }
         catch (Exception ex)
         {
-            Result.Text = "异常：" + ex.Message;
+            Result.Text = ex.Message;
         }
         finally { Busy.IsActive = false; TestBtn.IsEnabled = true; }
     }
 
-    private void Back_Click(object sender, RoutedEventArgs e) => Goto(2);
-    private void Next_Click(object sender, RoutedEventArgs e) => Goto(4);
-    private void Goto(int idx)
-    {
-        if (this.Frame?.Parent is Frame f && f.Parent is NavigationView nv)
-        {
-            var items = nv.MenuItems.OfType<NavigationViewItem>().ToList();
-            nv.SelectedItem = items.ElementAtOrDefault(idx);
-        }
-    }
+    private void Back_Click(object sender, RoutedEventArgs e) => this.Frame?.GoBack();
+    private void Next_Click(object sender, RoutedEventArgs e) => this.Frame?.Navigate(typeof(WizardTreePage));
 }

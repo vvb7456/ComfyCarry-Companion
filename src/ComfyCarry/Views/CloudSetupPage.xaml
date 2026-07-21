@@ -3,33 +3,15 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:ComfyCarry.Views"
+    xmlns:wiz="using:ComfyCarry.Views.Wizard"
     NavigationCacheMode="Required">
-    <ScrollViewer Padding="36,24,36,24" VerticalScrollBarVisibility="Auto">
-        <StackPanel MaxWidth="960" Spacing="16">
-            <TextBlock x:Name="TitleText" Text="云存储配置助手" Style="{ThemeResource SubtitleTextBlockStyle}"/>
-            <TextBlock x:Name="IntroText" TextWrapping="Wrap" Opacity="0.8" Text="纯本地生成 rclone.conf，不连接实例。完成后请上传到面板 Setup Wizard 的『云存储』步骤。"/>
-            <InfoBar x:Name="RcloneMissingBar" Severity="Warning" IsOpen="False" Title="rclone.exe 缺失" Message="未在应用目录找到 rclone.exe。请把 rclone.exe 放到应用目录后再使用本功能。"/>
-            <Button x:Name="StartWizardBtn" Click="StartWizard_Click" Style="{ThemeResource AccentButtonStyle}">
-                <TextBlock x:Name="StartBtnLabel" Text="新建 Remote"/>
-            </Button>
-
-            <NavigationView
-                x:Name="WizardNav"
-                PaneDisplayMode="Top"
-                IsBackButtonVisible="Collapsed"
-                IsSettingsVisible="False"
-                SelectionChanged="Wizard_SelectionChanged"
-                Visibility="Collapsed">
-                <NavigationView.MenuItems>
-                    <NavigationViewItem Tag="t_type"><TextBlock x:Name="S1Label" Text="1. 选云类型"/></NavigationViewItem>
-                    <NavigationViewItem Tag="t_params"><TextBlock x:Name="S2Label" Text="2. 填参"/></NavigationViewItem>
-                    <NavigationViewItem Tag="t_oauth"><TextBlock x:Name="S3Label" Text="3. 授权"/></NavigationViewItem>
-                    <NavigationViewItem Tag="t_test"><TextBlock x:Name="S4Label" Text="4. 测试"/></NavigationViewItem>
-                    <NavigationViewItem Tag="t_tree"><TextBlock x:Name="S5Label" Text="5. 目录树"/></NavigationViewItem>
-                    <NavigationViewItem Tag="t_export"><TextBlock x:Name="S6Label" Text="6. 导出"/></NavigationViewItem>
-                </NavigationView.MenuItems>
-                <Frame x:Name="WizardFrame"/>
-            </NavigationView>
-        </StackPanel>
-    </ScrollViewer>
+    <Grid RowDefinitions="Auto,*">
+        <!-- 步骤指示条（自绘，非可点击）。仅向导步骤页显示 -->
+        <Border x:Name="StepBar" Grid.Row="0" Visibility="Collapsed"
+                Background="{ThemeResource LayerFillColorDefaultBrush}"
+                Padding="24,10,24,10" HorizontalAlignment="Stretch">
+            <StackPanel x:Name="StepBarPanel" Orientation="Horizontal" Spacing="20"/>
+        </Border>
+        <Frame x:Name="HostFrame" Grid.Row="1" CacheSize="4"/>
+    </Grid>
 </Page>

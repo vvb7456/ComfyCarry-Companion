@@ -54,6 +54,14 @@
                 <ToggleSwitch x:Name="CloseToTraySwitch" Header="关闭窗口时最小化到托盘" Toggled="CloseToTray_Toggled"/>
             </StackPanel>
 
+            <!-- 网络代理 -->
+            <StackPanel Spacing="6">
+                <TextBlock x:Name="ProxyHeader" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                <TextBox x:Name="ProxyBox" PlaceholderText="http://127.0.0.1:7890"
+                         HorizontalAlignment="Stretch" TextChanged="Proxy_TextChanged"/>
+                <TextBlock x:Name="ProxyHint" Opacity="0.6" TextWrapping="Wrap"/>
+            </StackPanel>
+
             <!-- 关于 -->
             <StackPanel Spacing="4">
                 <TextBlock x:Name="AboutHeader" Text="关于" Style="{ThemeResource BodyStrongTextBlockStyle}"/>

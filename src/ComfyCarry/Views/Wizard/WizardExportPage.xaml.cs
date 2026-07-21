@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Controls;
 using Windows.Storage.Pickers;
 using Windows.Storage;
 using ComfyCarry.Services;
+using ComfyCarry.Views;
 
 namespace ComfyCarry.Views.Wizard;
 
@@ -22,21 +23,23 @@ public sealed partial class WizardExportPage : Page
     {
         Lbl.Text = L.T("cloud.step.export");
         Hint.Text = L.T("cloud.export.guide");
+        ConfPreview.Header = L.T("cloud.export.preview");
         SaveBtn.Content = L.T("common.export");
         CopyBtn.Content = L.T("common.copy");
+        BackBtn.Content = L.T("common.back");
+        FinishBtn.Content = L.T("common.finish");
     }
 
     private void LoadPreview()
     {
         try
         {
-            // 读取临时 conf 内容；若 app 主 conf 里已有同名 remote，合并展示
             if (File.Exists(WizardState.TempConfPath))
                 ConfPreview.Text = File.ReadAllText(WizardState.TempConfPath);
             else
-                ConfPreview.Text = "(尚未生成配置)";
+                ConfPreview.Text = L.T("cloud.export.noConf");
         }
-        catch (Exception ex) { ConfPreview.Text = "读取失败：" + ex.Message; }
+        catch (Exception ex) { ConfPreview.Text = ex.Message; }
     }
 
     private async void Save_Click(object sender, RoutedEventArgs e)
@@ -44,7 +47,6 @@ public sealed partial class WizardExportPage : Page
         try
         {
             // 合并到 app 主 conf（累积多个 remote），并保存为用户选择的文件
-            var appConf = App.Hub.Paths.AppRcloneConf;
             MergeIntoAppConf();
 
             var picker = new FileSavePicker();
@@ -59,10 +61,10 @@ public sealed partial class WizardExportPage : Page
             {
                 var content = File.ReadAllText(WizardState.TempConfPath);
                 await FileIO.WriteTextAsync(file, content);
-                Status.Text = $"已保存到：{file.Path}";
+                Status.Text = $"{L.T("cloud.export.saved")}: {file.Path}";
             }
         }
-        catch (Exception ex) { Status.Text = "异常：" + ex.Message; }
+        catch (Exception ex) { Status.Text = ex.Message; }
     }
 
     /// <summary>把临时 conf 里的 remote 段合并进 app 主 conf（简单文本合并，避免重复 [name] 段）。</summary>
@@ -74,7 +76,6 @@ public sealed partial class WizardExportPage : Page
             var tempText = File.ReadAllText(WizardState.TempConfPath);
             var appConf = App.Hub.Paths.AppRcloneConf;
             var appText = File.Exists(appConf) ? File.ReadAllText(appConf) : "";
-            // 解析 remote 段
             var tempRemotes = ParseRemotes(tempText);
             var appRemotes = ParseRemotes(appText);
             foreach (var kv in tempRemotes) appRemotes[kv.Key] = kv.Value;
@@ -120,18 +121,16 @@ public sealed partial class WizardExportPage : Page
             var dp = new DataPackage();
             dp.SetText(content);
             Clipboard.SetContent(dp);
-            Status.Text = "已复制到剪贴板。";
+            Status.Text = L.T("cloud.export.copied");
         }
-        catch (Exception ex) { Status.Text = "复制失败：" + ex.Message; }
+        catch (Exception ex) { Status.Text = ex.Message; }
     }
 
-    private void Back_Click(object sender, RoutedEventArgs e) => Goto(4);
-    private void Goto(int idx)
+    private void Back_Click(object sender, RoutedEventArgs e) => this.Frame?.GoBack();
+
+    private void Finish_Click(object sender, RoutedEventArgs e)
     {
-        if (this.Frame?.Parent is Frame f && f.Parent is NavigationView nv)
-        {
-            var items = nv.MenuItems.OfType<NavigationViewItem>().ToList();
-            nv.SelectedItem = items.ElementAtOrDefault(idx);
-        }
+        // 完成回首页，清空 back stack
+        this.Frame?.Navigate(typeof(CloudHomePage));
     }
 }

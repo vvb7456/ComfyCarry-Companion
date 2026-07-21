@@ -1,0 +1,37 @@
+<Page
+    x:Class="ComfyCarry.Views.CloudHomePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer Padding="24,24,24,24" VerticalScrollBarVisibility="Auto">
+        <StackPanel MaxWidth="720" Spacing="16" HorizontalAlignment="Left">
+            <TextBlock x:Name="TitleText" Style="{ThemeResource SubtitleTextBlockStyle}"/>
+            <TextBlock x:Name="IntroText" Opacity="0.8" TextWrapping="Wrap"/>
+
+            <InfoBar x:Name="RcloneMissingBar" Severity="Warning" IsOpen="False"/>
+
+            <!-- 已配置的云盘列表（只读） -->
+            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1" CornerRadius="8" Padding="20">
+                <StackPanel Spacing="8">
+                    <TextBlock x:Name="RemotesHeader" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                    <ListView x:Name="RemotesList" SelectionMode="None" IsItemClickEnabled="False">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="x:String">
+                                <TextBlock Text="{x:Bind}" Opacity="0.9"/>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                    <TextBlock x:Name="RemotesEmpty" Opacity="0.6" Visibility="Collapsed"/>
+                </StackPanel>
+            </Border>
+
+            <Button x:Name="NewRemoteBtn" Click="NewRemote_Click" Style="{ThemeResource AccentButtonStyle}">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon Glyph="&#xE710;" FontSize="14"/>
+                    <TextBlock x:Name="NewRemoteLabel"/>
+                </StackPanel>
+            </Button>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

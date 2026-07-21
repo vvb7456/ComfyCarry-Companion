@@ -20,6 +20,14 @@
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <DefaultLanguage>zh-CN</DefaultLanguage>
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
+    <!-- 仅保留 en 卫星资源，精简产物体积 -->
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <!-- Release：去掉 pdb，进一步精简产物 -->
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
   </PropertyGroup>
 
   <!-- Unpackaged EXE. EnableMsixTooling=false 防止非打包 debug/run 构建的 resources.pri 不匹配。

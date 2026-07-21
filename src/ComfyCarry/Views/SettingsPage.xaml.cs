@@ -9,6 +9,7 @@ public sealed partial class SettingsPage : Page
 {
     private LocalizationService L => App.Hub.Locale;
     public ObservableCollection<InstanceVM> Instances { get; } = new();
+    private bool _loading;   // 防止回填时触发 Update
 
     public SettingsPage()
     {
@@ -32,19 +33,27 @@ public sealed partial class SettingsPage : Page
         ThemeDark.Content = L.T("settings.theme.dark");
         AutoStartSwitch.Header = L.T("settings.autostart");
         CloseToTraySwitch.Header = L.T("settings.closeToTray");
+        ProxyHeader.Text = L.T("settings.proxy");
+        ProxyHint.Text = L.T("settings.proxy.hint");
         AboutHeader.Text = L.T("settings.about");
         VersionLine.Text = $"{L.T("settings.about.version")}: 1.0.0";
     }
 
     private void LoadSettings()
     {
-        var s = App.Hub.Settings.Data;
-        foreach (var rb in LangRadios.Items.OfType<RadioButton>())
-            rb.IsChecked = (rb.Tag as string) == s.Language;
-        foreach (var rb in ThemeRadios.Items.OfType<RadioButton>())
-            rb.IsChecked = (rb.Tag as string) == s.Theme.ToString();
-        AutoStartSwitch.IsOn = s.StartWithWindows;
-        CloseToTraySwitch.IsOn = s.CloseToTray;
+        _loading = true;
+        try
+        {
+            var s = App.Hub.Settings.Data;
+            foreach (var rb in LangRadios.Items.OfType<RadioButton>())
+                rb.IsChecked = (rb.Tag as string) == s.Language;
+            foreach (var rb in ThemeRadios.Items.OfType<RadioButton>())
+                rb.IsChecked = (rb.Tag as string) == s.Theme.ToString();
+            AutoStartSwitch.IsOn = s.StartWithWindows;
+            CloseToTraySwitch.IsOn = s.CloseToTray;
+            ProxyBox.Text = s.Proxy ?? "";
+        }
+        finally { _loading = false; }
     }
 
     private void LoadInstances()
@@ -84,6 +93,12 @@ public sealed partial class SettingsPage : Page
     private void CloseToTray_Toggled(object sender, RoutedEventArgs e)
     {
         App.Hub.Settings.Update(s => s.CloseToTray = CloseToTraySwitch.IsOn);
+    }
+
+    private void Proxy_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_loading) return;
+        App.Hub.Settings.Update(s => s.Proxy = ProxyBox.Text.Trim());
     }
 
     private void SetCurrent_Click(object sender, RoutedEventArgs e)

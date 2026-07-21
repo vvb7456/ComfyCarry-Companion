@@ -4,10 +4,23 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:ComfyCarry.Views"
     Title="ComfyCarry Companion">
-    <Grid>
+    <Grid RowDefinitions="Auto,*">
+        <!-- 自绘标题栏：右侧留白让系统三键叠上去不撞 -->
+        <Border x:Name="AppTitleBar" Grid.Row="0" Height="40" Padding="14,0,0,0"
+                Background="Transparent"
+                HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
+                <FontIcon Glyph="&#xE753;" FontSize="16"/>
+                <TextBlock x:Name="AppTitleText" Text="ComfyCarry Companion"
+                           Style="{ThemeResource CaptionTextBlockStyle}"
+                           Margin="8,0,0,0" VerticalAlignment="Center"/>
+            </StackPanel>
+        </Border>
         <NavigationView
             x:Name="Nav"
+            Grid.Row="1"
             PaneDisplayMode="Left"
+            OpenPaneLength="200"
             IsBackButtonVisible="Collapsed"
             IsSettingsVisible="False"
             SelectionChanged="Nav_SelectionChanged">

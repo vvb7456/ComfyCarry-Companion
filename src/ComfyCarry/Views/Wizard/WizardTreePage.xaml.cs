@@ -18,31 +18,32 @@ public sealed partial class WizardTreePage : Page
     {
         Lbl.Text = L.T("cloud.step.tree");
         Hint.Text = L.T("cloud.tree.hint");
+        DoTree.Header = L.T("cloud.tree.toggle");
+        RunBtn.Content = L.T("cloud.tree.run");
+        BackBtn.Content = L.T("common.back");
+        NextBtn.Content = L.T("common.next");
     }
 
     private async void Run_Click(object sender, RoutedEventArgs e)
     {
-        if (!DoTree.IsOn) { Goto(5); return; }
+        if (!DoTree.IsOn)
+        {
+            this.Frame?.Navigate(typeof(WizardExportPage));
+            return;
+        }
         RunBtn.IsEnabled = false;
         Busy.IsActive = true;
-        Result.Text = "正在创建…";
+        Result.Text = L.T("cloud.tree.running");
         try
         {
-            int code = await App.Hub.Rclone.CreateStandardTreeAsync(WizardState.TempConfPath, WizardState.RemoteName, WizardState.Proxy);
-            Result.Text = code == 0 ? "完成 ✓" : $"部分失败 (exit {code})";
+            int code = await App.Hub.Rclone.CreateStandardTreeAsync(
+                WizardState.TempConfPath, WizardState.RemoteName, App.Hub.Settings.Data.Proxy);
+            Result.Text = code == 0 ? L.T("cloud.tree.ok") : $"{L.T("cloud.tree.partial")} (exit {code})";
         }
-        catch (Exception ex) { Result.Text = "异常：" + ex.Message; }
+        catch (Exception ex) { Result.Text = ex.Message; }
         finally { Busy.IsActive = false; RunBtn.IsEnabled = true; }
     }
 
-    private void Back_Click(object sender, RoutedEventArgs e) => Goto(3);
-    private void Next_Click(object sender, RoutedEventArgs e) => Goto(5);
-    private void Goto(int idx)
-    {
-        if (this.Frame?.Parent is Frame f && f.Parent is NavigationView nv)
-        {
-            var items = nv.MenuItems.OfType<NavigationViewItem>().ToList();
-            nv.SelectedItem = items.ElementAtOrDefault(idx);
-        }
-    }
+    private void Back_Click(object sender, RoutedEventArgs e) => this.Frame?.GoBack();
+    private void Next_Click(object sender, RoutedEventArgs e) => this.Frame?.Navigate(typeof(WizardExportPage));
 }
