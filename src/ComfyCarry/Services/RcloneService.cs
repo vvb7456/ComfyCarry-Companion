@@ -48,7 +48,21 @@ public sealed class RcloneService
             if (continueResult is { Length: > 0 }) { args.Add("--result"); args.Add(continueResult); }
         }
         var (code, stdout, stderr) = await RunAsync(args, proxy, ct);
-        return ParseState(stdout, stderr, code);
+        var state = ParseState(stdout, stderr, code);
+        // 落盘诊断（不记 args，避免泄露密钥）：便于定位 OAuth 状态机走向
+        LogLine($"config name={name} type={type} continue={(continueState is { Length: > 0 })} exit={code} " +
+                $"stdoutLen={stdout.Length} -> State='{state.State}' Option='{state.Option?.Name}' Error='{state.Error}'");
+        return state;
+    }
+
+    private void LogLine(string msg)
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(_paths.LogFile)!);
+            File.AppendAllText(_paths.LogFile, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} [rclone] {msg}{Environment.NewLine}");
+        }
+        catch { /* 日志失败不影响主流程 */ }
     }
 
     /// <summary>

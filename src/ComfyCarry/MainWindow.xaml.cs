@@ -166,8 +166,10 @@ public sealed partial class MainWindow : Window
         NavCloudLabel.Text = L.T("nav.cloud");
         NavPullLabel.Text = L.T("nav.pull");
         NavSettingsLabel.Text = L.T("nav.settings");
-        AppTitleText.Text = L.T("app.title");
-        Title = L.T("app.title");
+        var ver = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+        var vs = ver is null ? "" : $" v{ver.Major}.{ver.Minor}.{ver.Build}";
+        AppTitleText.Text = L.T("app.title") + vs;
+        Title = L.T("app.title") + vs;
     }
 }
 
