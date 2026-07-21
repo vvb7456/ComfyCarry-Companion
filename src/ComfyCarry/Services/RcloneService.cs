@@ -47,22 +47,17 @@ public sealed class RcloneService
             args.Add("--state"); args.Add(continueState);
             if (continueResult is { Length: > 0 }) { args.Add("--result"); args.Add(continueResult); }
         }
-        // 让 rclone 自行处理 OAuth：用 --all 返回结构化状态
-        args.Add("--all");
         var (code, stdout, stderr) = await RunAsync(args, proxy, ct);
-        var state = ParseState(stdout, stderr);
-        if (state.Error is null && code != 0 && state.IsDone)
-            state.Error = $"rclone exited {code}";
-        return state;
+        return ParseState(stdout, stderr, code);
     }
 
     /// <summary>
-    /// rclone config update <name> --continue --state <s> --result <r> --non-interactive --config <conf>
-    /// 用于把用户在 GUI 选的 OneDrive drive 回灌给 rclone 状态机。
+    /// 继续状态机：把用户的选择（或驱动的自动应答）回灌给 rclone。
+    /// 仍以 config create &lt;name&gt; &lt;type&gt; --continue 形式发起（实测缺 type 会报 couldn't find type field）。
     /// </summary>
     public Task<RcloneConfigState> ConfigContinueAsync(
-        string confPath, string name, string state, string result, string? proxy = null, CancellationToken ct = default)
-        => ConfigCreateAsync(confPath, name, "", Enumerable.Empty<KeyValuePair<string, string>>(),
+        string confPath, string name, string type, string state, string result, string? proxy = null, CancellationToken ct = default)
+        => ConfigCreateAsync(confPath, name, type, Enumerable.Empty<KeyValuePair<string, string>>(),
             proxy, continueState: state, continueResult: result, ct: ct);
 
     /// <summary>
@@ -77,28 +72,105 @@ public sealed class RcloneService
         return await RunAsync(args, proxy, ct);
     }
 
-    private static RcloneConfigState ParseState(string stdout, string stderr)
+    // ---------- 状态机驱动器：机器类问题自动应答，只把"真正要用户选的"回给 UI ----------
+
+    private const int DriveMaxSteps = 25;
+
+    /// <summary>
+    /// 启动 OAuth/参数配置状态机：config create &lt;name&gt; &lt;type&gt; [k=v] --non-interactive。
+    /// 自动处理 config_is_local（开浏览器、阻塞到登录完成）、bool y/n、Required==false 可选项；
+    /// 遇 Exclusive==true && Type!="bool" && Examples.Count>0 的"真正用户选择"（如 OneDrive 选 drive）则返回 NeedChoice。
+    /// progress 用于把"浏览器已打开，请在浏览器完成登录…"之类提示推给 UI。
+    /// </summary>
+    public async Task<ConfigDriveResult> ConfigDriveAsync(
+        string confPath, string name, string type,
+        IEnumerable<KeyValuePair<string, string>> options,
+        string? proxy = null,
+        IProgress<string>? progress = null,
+        CancellationToken ct = default)
     {
-        var state = new RcloneConfigState();
-        // rclone --all 输出 JSON 到 stdout（可能混有日志行），找首个 { 开头行
-        var lines = stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        string? jsonLine = null;
-        foreach (var ln in lines)
+        var st = await ConfigCreateAsync(confPath, name, type, options, proxy, null, null, ct);
+        return await DriveLoopAsync(confPath, name, type, st, proxy, progress, ct);
+    }
+
+    /// <summary>
+    /// 在用户选完一项后继续驱动状态机，直到 done 或下一个 NeedChoice。
+    /// </summary>
+    public async Task<ConfigDriveResult> ConfigDriveContinueAsync(
+        string confPath, string name, string type, ConfigDriveResult last, string result,
+        string? proxy = null, IProgress<string>? progress = null, CancellationToken ct = default)
+    {
+        if (last.Outcome != ConfigDriveOutcome.NeedChoice)
+            return last;
+        var st = await ConfigContinueAsync(confPath, name, type, last.State, result, proxy, ct);
+        return await DriveLoopAsync(confPath, name, type, st, proxy, progress, ct);
+    }
+
+    private async Task<ConfigDriveResult> DriveLoopAsync(
+        string confPath, string name, string type,
+        RcloneConfigState st, string? proxy, IProgress<string>? progress, CancellationToken ct)
+    {
+        for (int step = 0; step < DriveMaxSteps; step++)
         {
-            var t = ln.Trim();
-            if (t.StartsWith("{")) { jsonLine = t; break; }
+            // 完成
+            if (st.IsDone)
+                return ConfigDriveResult.Done();
+
+            // 出错
+            if (!string.IsNullOrEmpty(st.Error))
+                return ConfigDriveResult.Error(st.Error);
+
+            // 无待答问题但未完成：视为异常终止
+            if (st.Option is null)
+                return ConfigDriveResult.Error("rclone returned no option but is not done.");
+
+            var opt = st.Option;
+
+            // config_is_local：自动继续，result=true。
+            // 这一步 rclone 会打开浏览器并起本地 127.0.0.1:53682 回调，阻塞到登录完成。
+            if (string.Equals(opt.Name, "config_is_local", StringComparison.Ordinal))
+            {
+                progress?.Report("browser");
+                st = await ConfigContinueAsync(confPath, name, type, st.State, "true", proxy, ct);
+                progress?.Report("login_done");
+                continue;
+            }
+
+            // 真正要用户选的：Exclusive && Type!=bool && Examples.Count>0
+            if (opt.Exclusive && !string.Equals(opt.Type, "bool", StringComparison.OrdinalIgnoreCase) && opt.Examples.Count > 0)
+            {
+                return ConfigDriveResult.NeedChoice(st.State, opt.Name, opt.Examples);
+            }
+
+            // 其它（bool y/n、Required==false 可选项）：用默认值自动继续
+            var result = !string.IsNullOrEmpty(opt.DefaultStr) ? opt.DefaultStr : "";
+            st = await ConfigContinueAsync(confPath, name, type, st.State, result, proxy, ct);
         }
-        if (jsonLine is { Length: > 0 })
+
+        return ConfigDriveResult.Error($"rclone config loop exceeded {DriveMaxSteps} steps.");
+    }
+
+    private static RcloneConfigState ParseState(string stdout, string stderr, int code)
+    {
+        // rclone --non-interactive 把 JSON 状态对象输出到 stdout，且是【多行美化】JSON（实测 33 行），
+        // 日志/NOTICE（含"浏览器 URL""Config file not found"）走 stderr。
+        // 因此取 stdout 里首个 '{' 到末个 '}' 的整段解析，不能按单行找。
+        var start = stdout.IndexOf('{');
+        var end = stdout.LastIndexOf('}');
+        if (start >= 0 && end > start)
         {
             try
             {
-                state = JsonSerializer.Deserialize<RcloneConfigState>(jsonLine)!;
-                if (state is null) state = new RcloneConfigState();
+                var json = stdout.Substring(start, end - start + 1);
+                var s = JsonSerializer.Deserialize<RcloneConfigState>(json);
+                if (s is not null) return s;   // rclone 把真正的错误放在 JSON 的 "Error" 字段
             }
-            catch { /* fallthrough */ }
+            catch { /* 落到下面的兜底 */ }
         }
-        if (string.IsNullOrEmpty(state.Error) && !string.IsNullOrWhiteSpace(stderr))
-            state.Error = stderr.Trim();
+        // 无可解析 JSON：仅当进程失败时才把 stderr 当错误（stderr 常态含无害 NOTICE，不能直接当错误）。
+        var state = new RcloneConfigState();
+        if (code != 0)
+            state.Error = !string.IsNullOrWhiteSpace(stderr) ? stderr.Trim() : $"rclone exited {code}";
         return state;
     }
 

@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using ComfyCarry.Models;
 using ComfyCarry.Services;
 
 namespace ComfyCarry.Views.Wizard;
@@ -9,6 +10,9 @@ public sealed partial class WizardConfigPage : Page
 {
     private LocalizationService L => App.Hub.Locale;
     public ObservableCollection<ConfigChoiceVM> Choices { get; } = new();
+
+    // 当前驱动结果（用于 Choice_Click 续跑）
+    private ConfigDriveResult? _drive;
 
     public WizardConfigPage()
     {
@@ -109,25 +113,20 @@ public sealed partial class WizardConfigPage : Page
         try
         {
             SaveBtn.IsEnabled = false;
+            Busy.IsActive = true;
             var def = CloudTypeDefs.Get(WizardState.SelectedCloud);
             var opts = BuildOptions(def);
-            var st = await App.Hub.Rclone.ConfigCreateAsync(
+            Status.Text = L.T("cloud.config.authorizing");
+            var res = await App.Hub.Rclone.ConfigDriveAsync(
                 WizardState.TempConfPath, WizardState.RemoteName, def.RcloneType, opts, ProxyFromSettings());
-            WizardState.LastState = st;
-            if (st.IsDone)
-            {
-                NextBtn.Visibility = Visibility.Visible;
-            }
-            else
-            {
-                Status.Text = st.Error is { Length: > 0 } ? st.Error : L.T("cloud.config.failed");
-            }
+            _drive = res;
+            ApplyDriveResult(res);
         }
         catch (Exception ex)
         {
             Status.Text = ex.Message;
         }
-        finally { SaveBtn.IsEnabled = true; }
+        finally { SaveBtn.IsEnabled = true; Busy.IsActive = false; }
     }
 
     // ---------- OAuth 类型：开始授权 ----------
@@ -136,44 +135,19 @@ public sealed partial class WizardConfigPage : Page
         var def = CloudTypeDefs.Get(WizardState.SelectedCloud);
         Busy.IsActive = true;
         AuthorizeBtn.IsEnabled = false;
-        Status.Text = L.T("cloud.config.authorizing");
+        Status.Text = L.T("cloud.config.browserOpening");
 
         try
         {
             var opts = BuildOptions(def);
             if (def.Provider is { Length: > 0 }) opts["provider"] = def.Provider;
 
-            var st = await App.Hub.Rclone.ConfigCreateAsync(
-                WizardState.TempConfPath, WizardState.RemoteName, def.RcloneType, opts, ProxyFromSettings());
-            WizardState.LastState = st;
-
-            if (st.IsDone)
-            {
-                Status.Text = L.T("cloud.config.authorized");
-                NextBtn.Visibility = Visibility.Visible;
-            }
-            else if (st.Choices.Count > 0)
-            {
-                Status.Text = L.T("cloud.config.chooseDrive");
-                Choices.Clear();
-                int idx = 0;
-                foreach (var ch in st.Choices)
-                {
-                    var label = ch.TryGetValue("Name", out var n) ? n.GetString() : $"{L.T("cloud.config.option")} {idx + 1}";
-                    Choices.Add(new ConfigChoiceVM { Id = idx.ToString(), Label = label });
-                    idx++;
-                }
-                ChoicesList.Visibility = Visibility.Visible;
-            }
-            else if (st.Error is { Length: > 0 })
-            {
-                Status.Text = st.Error;
-            }
-            else
-            {
-                Status.Text = L.T("cloud.config.authorized");
-                NextBtn.Visibility = Visibility.Visible;
-            }
+            var progress = new Progress<string>(OnDriveProgress);
+            var res = await App.Hub.Rclone.ConfigDriveAsync(
+                WizardState.TempConfPath, WizardState.RemoteName, def.RcloneType, opts,
+                ProxyFromSettings(), progress);
+            _drive = res;
+            ApplyDriveResult(res);
         }
         catch (Exception ex)
         {
@@ -182,42 +156,70 @@ public sealed partial class WizardConfigPage : Page
         finally { Busy.IsActive = false; AuthorizeBtn.IsEnabled = true; }
     }
 
+    /// <summary>驱动器进度回调：区分"开浏览器"与"登录完成"两段文案。</summary>
+    private void OnDriveProgress(string tag)
+    {
+        if (tag == "browser")
+            Status.Text = L.T("cloud.config.waitingLogin");
+        else if (tag == "login_done")
+            Status.Text = L.T("cloud.config.authorized");
+    }
+
+    /// <summary>把驱动结果落到 UI：done 显 Next、NeedChoice 填列表、Error 显文案。</summary>
+    private void ApplyDriveResult(ConfigDriveResult res)
+    {
+        // 用 LastState 携带 IsDone 标志供 ApplyMode 复用
+        WizardState.LastState = res.Outcome == ConfigDriveOutcome.Done
+            ? new RcloneConfigState()   // State="" 即 IsDone
+            : new RcloneConfigState { State = res.State };
+
+        switch (res.Outcome)
+        {
+            case ConfigDriveOutcome.Done:
+                ChoicesList.Visibility = Visibility.Collapsed;
+                Status.Text = L.T("cloud.config.authorized");
+                NextBtn.Visibility = Visibility.Visible;
+                break;
+            case ConfigDriveOutcome.NeedChoice:
+                Status.Text = L.T("cloud.config.chooseDrive");
+                FillChoices(res.Examples);
+                ChoicesList.Visibility = Visibility.Visible;
+                break;
+            default: // Error
+                ChoicesList.Visibility = Visibility.Collapsed;
+                Status.Text = !string.IsNullOrEmpty(res.Message) ? res.Message : L.T("cloud.config.failed");
+                break;
+        }
+    }
+
+    private void FillChoices(IReadOnlyList<RcloneExample> examples)
+    {
+        Choices.Clear();
+        for (int i = 0; i < examples.Count; i++)
+        {
+            var ex = examples[i];
+            var label = !string.IsNullOrEmpty(ex.Help) ? ex.Help : $"{L.T("cloud.config.option")} {i + 1}";
+            Choices.Add(new ConfigChoiceVM { Id = ex.Value, Label = label });
+        }
+    }
+
     private async void Choice_Click(object sender, RoutedEventArgs e)
     {
-        if (WizardState.LastState is not { } st) return;
-        if (sender is not RadioButton rb || rb.Tag is not string idStr) return;
-        if (!int.TryParse(idStr, out var idx) || idx >= st.Choices.Count) return;
-        var chosen = st.Choices[idx];
-        var result = chosen.TryGetValue("Result", out var r) ? r.GetString() : idx.ToString();
+        if (_drive is not { Outcome: ConfigDriveOutcome.NeedChoice } drive) return;
+        if (sender is not RadioButton rb || rb.Tag is not string id) return;
+        // id 即 Example.Value
+        var result = id;
         Status.Text = L.T("cloud.config.authorizing");
         Busy.IsActive = true;
         try
         {
-            var next = await App.Hub.Rclone.ConfigContinueAsync(
-                WizardState.TempConfPath, WizardState.RemoteName, st.State, result, ProxyFromSettings());
-            WizardState.LastState = next;
-            if (next.IsDone)
-            {
-                ChoicesList.Visibility = Visibility.Collapsed;
-                Status.Text = L.T("cloud.config.authorized");
-                NextBtn.Visibility = Visibility.Visible;
-            }
-            else if (next.Choices.Count > 0)
-            {
-                Choices.Clear();
-                int i = 0;
-                foreach (var ch in next.Choices)
-                {
-                    var label = ch.TryGetValue("Name", out var n) ? n.GetString() : $"{L.T("cloud.config.option")} {i + 1}";
-                    Choices.Add(new ConfigChoiceVM { Id = i.ToString(), Label = label });
-                    i++;
-                }
-            }
-            else
-            {
-                Status.Text = L.T("cloud.config.authorized");
-                NextBtn.Visibility = Visibility.Visible;
-            }
+            var def = CloudTypeDefs.Get(WizardState.SelectedCloud);
+            var progress = new Progress<string>(OnDriveProgress);
+            var next = await App.Hub.Rclone.ConfigDriveContinueAsync(
+                WizardState.TempConfPath, WizardState.RemoteName, def.RcloneType, drive, result,
+                ProxyFromSettings(), progress);
+            _drive = next;
+            ApplyDriveResult(next);
         }
         catch (Exception ex) { Status.Text = ex.Message; }
         finally { Busy.IsActive = false; }

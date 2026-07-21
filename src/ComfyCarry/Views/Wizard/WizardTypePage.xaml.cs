@@ -19,11 +19,18 @@ public sealed partial class WizardTypePage : Page
     private void LoadRadios()
     {
         TypeRadios.Items.Clear();
-        foreach (var def in CloudTypeDefs.All)
+        int defaultIndex = 0;
+        for (int i = 0; i < CloudTypeDefs.All.Count; i++)
         {
-            var rb = new RadioButton { Content = def.DisplayName, Tag = def, IsChecked = def.Type == WizardState.SelectedCloud };
+            var def = CloudTypeDefs.All[i];
+            if (def.Type == WizardState.SelectedCloud) defaultIndex = i;
+            var rb = new RadioButton { Content = def.DisplayName, Tag = def };
             TypeRadios.Items.Add(rb);
         }
+        // 手动 new 的 RadioButton 不会自动同步 RadioButtons.SelectedItem；
+        // 这里显式设 SelectedIndex，触发 SelectionChanged → 同步 SelectedItem → 启用 Next。
+        TypeRadios.SelectedIndex = defaultIndex;
+        // 兜底（SelectedIndex 在某些极端时机可能未触发回调）
         UpdateNextEnabled();
     }
 

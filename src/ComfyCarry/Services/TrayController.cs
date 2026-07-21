@@ -52,13 +52,34 @@ public sealed class TrayController : IDisposable
         var menu = new MenuFlyout();
         var miShow = new MenuFlyoutItem { Text = L.T("tray.show") };
         miShow.Click += (s, e) => ShowMainWindow();
+        _pauseItem.Click += (s, e) => TogglePause();
         var miExit = new MenuFlyoutItem { Text = L.T("tray.exit") };
-        miExit.Click += (s, e) => { Dispose(); Environment.Exit(0); };
+        miExit.Click += (s, e) => ExitApp();
         menu.Items.Add(miShow);
         menu.Items.Add(_pauseItem);
         menu.Items.Add(new MenuFlyoutSeparator());
         menu.Items.Add(miExit);
         return menu;
+    }
+
+    /// <summary>
+    /// 退出应用。切回 UI 线程执行，规避托盘菜单回调的线程问题；
+    /// 退出前不 Dispose 图标——菜单仍打开时 Dispose 会与 UI 线程死锁，
+    /// 导致 Environment.Exit 到不了、进程退不掉。进程退出后系统会自动清理托盘图标。
+    /// </summary>
+    private void ExitApp()
+    {
+        var dq = App.MainWindow?.DispatcherQueue;
+        if (dq is null)
+        {
+            Environment.Exit(0);
+            return;
+        }
+        dq.TryEnqueue(() =>
+        {
+            try { App.Hub.Stop(); } catch { /* ignore */ }
+            Environment.Exit(0);
+        });
     }
 
     private void TogglePause()

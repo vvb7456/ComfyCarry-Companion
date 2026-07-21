@@ -12,9 +12,9 @@
                 <StackPanel Spacing="12">
                     <TextBox x:Name="NameBox" Header="Remote 名称"
                              PlaceholderText="my-onedrive"
-                             HorizontalAlignment="Stretch"
+                             Width="360"
                              TextChanged="Name_TextChanged"/>
-                    <TextBlock x:Name="NameErr" Foreground="{ThemeResource SystemFillColorCriticalBrush}" Visibility="Collapsed" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="NameErr" Foreground="{ThemeResource SystemFillColorCriticalBrush}" Visibility="Collapsed" TextWrapping="Wrap" MaxWidth="360"/>
                 </StackPanel>
             </Border>
 
