@@ -29,7 +29,7 @@ public sealed class TrayController : IDisposable
         {
             ToolTipText = L.T("app.title"),
             ContextFlyout = BuildMenu(),
-            LeftClickCommand = new RelayCommand(ShowMainWindow),
+            LeftClickCommand = new RelayCommand(() => { Log("left-click"); ShowMainWindow(); }),
         };
 
         // 图标：从 exe 提取（csproj 的 ApplicationIcon 设置后，exe 自带图标）
@@ -43,23 +43,34 @@ public sealed class TrayController : IDisposable
         }
         catch { /* 无图标时 H.NotifyIcon 用占位，不阻塞 */ }
 
-        try { _icon.ForceCreate(); }
-        catch (Exception ex) { Debug.WriteLine($"[Tray] create: {ex}"); }
+        try { _icon.ForceCreate(); Log("icon ForceCreate ok"); }
+        catch (Exception ex) { Debug.WriteLine($"[Tray] create: {ex}"); Log($"icon ForceCreate FAILED: {ex.Message}"); }
     }
 
     private MenuFlyout BuildMenu()
     {
         var menu = new MenuFlyout();
         var miShow = new MenuFlyoutItem { Text = L.T("tray.show") };
-        miShow.Click += (s, e) => ShowMainWindow();
-        _pauseItem.Click += (s, e) => TogglePause();
+        miShow.Click += (s, e) => { Log("menu: show clicked"); ShowMainWindow(); };
+        _pauseItem.Click += (s, e) => { Log("menu: pause clicked"); TogglePause(); };
         var miExit = new MenuFlyoutItem { Text = L.T("tray.exit") };
-        miExit.Click += (s, e) => ExitApp();
+        miExit.Click += (s, e) => { Log("menu: exit clicked"); ExitApp(); };
         menu.Items.Add(miShow);
         menu.Items.Add(_pauseItem);
         menu.Items.Add(new MenuFlyoutSeparator());
         menu.Items.Add(miExit);
         return menu;
+    }
+
+    private static void Log(string msg)
+    {
+        try
+        {
+            var f = App.Hub.Paths.LogFile;
+            Directory.CreateDirectory(Path.GetDirectoryName(f)!);
+            File.AppendAllText(f, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} [tray] {msg}{Environment.NewLine}");
+        }
+        catch { /* ignore */ }
     }
 
     /// <summary>
@@ -70,16 +81,22 @@ public sealed class TrayController : IDisposable
     private void ExitApp()
     {
         var dq = App.MainWindow?.DispatcherQueue;
+        Log($"ExitApp: dq={(dq is null ? "null" : "ok")}");
         if (dq is null)
         {
+            Log("ExitApp: Environment.Exit(0) 直接");
             Environment.Exit(0);
             return;
         }
-        dq.TryEnqueue(() =>
+        bool ok = dq.TryEnqueue(() =>
         {
+            Log("ExitApp: 在 UI 线程执行 Stop+Exit");
             try { App.Hub.Stop(); } catch { /* ignore */ }
             Environment.Exit(0);
         });
+        Log($"ExitApp: TryEnqueue 返回 {ok}");
+        // 兜底：若无法投递到 UI 线程，直接退出
+        if (!ok) Environment.Exit(0);
     }
 
     private void TogglePause()

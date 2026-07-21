@@ -65,6 +65,63 @@ public sealed class RcloneService
         catch { /* 日志失败不影响主流程 */ }
     }
 
+    // rclone OAuth 回调固定端口
+    private const int OAuthPort = 53682;
+
+    /// <summary>rclone 起授权本地服务失败（端口被占）的特征识别。</summary>
+    private static bool LooksLikePortBindError(string? err)
+    {
+        if (string.IsNullOrEmpty(err)) return false;
+        return err.Contains("53682")
+            || err.Contains("auth webserver", StringComparison.OrdinalIgnoreCase)
+            || err.Contains("forbidden by its access permissions", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// 杀掉占用指定本地端口的进程。rclone OAuth 固定用 53682，卡住的前次授权会永久占用它，
+    /// 后续 bind 报 WSAEACCES。用 netstat -ano 精确定位监听该端口的 PID，只杀占端口者，
+    /// 不误伤后台 pull 的 rclone。
+    /// </summary>
+    public void KillPortListener(int port)
+    {
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = "netstat",
+                Arguments = "-ano",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+            };
+            using var p = Process.Start(psi);
+            if (p is null) return;
+            var outp = p.StandardOutput.ReadToEnd();
+            p.WaitForExit(5000);
+
+            var suffix = ":" + port;
+            var pids = new HashSet<int>();
+            foreach (var line in outp.Split('\n'))
+            {
+                var parts = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+                // 形如: TCP  127.0.0.1:53682  0.0.0.0:0  LISTENING  7820
+                if (parts.Length >= 5
+                    && parts[0].Equals("TCP", StringComparison.OrdinalIgnoreCase)
+                    && parts[1].EndsWith(suffix, StringComparison.Ordinal)
+                    && int.TryParse(parts[^1], out var pid) && pid > 0)
+                {
+                    pids.Add(pid);
+                }
+            }
+            foreach (var pid in pids)
+            {
+                try { using var proc = Process.GetProcessById(pid); proc.Kill(true); LogLine($"已杀占用 {port} 的进程 pid={pid}"); }
+                catch { /* 进程可能已退出 */ }
+            }
+        }
+        catch { /* 清理失败不阻塞主流程 */ }
+    }
+
     /// <summary>
     /// 继续状态机：把用户的选择（或驱动的自动应答）回灌给 rclone。
     /// 仍以 config create &lt;name&gt; &lt;type&gt; --continue 形式发起（实测缺 type 会报 couldn't find type field）。
@@ -141,11 +198,20 @@ public sealed class RcloneService
             var opt = st.Option;
 
             // config_is_local：自动继续，result=true。
-            // 这一步 rclone 会打开浏览器并起本地 127.0.0.1:53682 回调，阻塞到登录完成。
+            // 这一步 rclone 打开浏览器并起本地 127.0.0.1:53682 回调，阻塞到登录完成。
+            // 卡住的前次授权会永久占用 53682 → 后续 bind 报 WSAEACCES。先清理占用者；失败再清一次重试。
             if (string.Equals(opt.Name, "config_is_local", StringComparison.Ordinal))
             {
                 progress?.Report("browser");
-                st = await ConfigContinueAsync(confPath, name, type, st.State, "true", proxy, ct);
+                var localState = st.State;
+                KillPortListener(OAuthPort);
+                st = await ConfigContinueAsync(confPath, name, type, localState, "true", proxy, ct);
+                if (LooksLikePortBindError(st.Error))
+                {
+                    LogLine("53682 绑定失败(WSAEACCES?)，清理占用者后重试一次");
+                    KillPortListener(OAuthPort);
+                    st = await ConfigContinueAsync(confPath, name, type, localState, "true", proxy, ct);
+                }
                 progress?.Report("login_done");
                 continue;
             }
@@ -346,7 +412,16 @@ public sealed class RcloneService
         using var p = Process.Start(psi)!;
         var stdoutTask = p.StandardOutput.ReadToEndAsync(ct);
         var stderrTask = p.StandardError.ReadToEndAsync(ct);
-        await p.WaitForExitAsync(ct);
+        try
+        {
+            await p.WaitForExitAsync(ct);
+        }
+        catch (OperationCanceledException)
+        {
+            // 取消（如离开授权页/点取消）时杀掉进程，否则 rclone 授权服务会僵在后台占着 53682
+            try { if (!p.HasExited) p.Kill(true); } catch { /* ignore */ }
+            throw;
+        }
         var stdout = await stdoutTask;
         var stderr = await stderrTask;
         return (p.ExitCode, stdout, stderr);

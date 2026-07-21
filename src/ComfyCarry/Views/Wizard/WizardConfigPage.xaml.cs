@@ -187,10 +187,16 @@ public sealed partial class WizardConfigPage : Page
                 break;
             default: // Error
                 ChoicesList.Visibility = Visibility.Collapsed;
-                Status.Text = !string.IsNullOrEmpty(res.Message) ? res.Message : L.T("cloud.config.failed");
+                Status.Text = LooksLikePortBusy(res.Message)
+                    ? L.T("cloud.config.portBusy")
+                    : (!string.IsNullOrEmpty(res.Message) ? res.Message : L.T("cloud.config.failed"));
                 break;
         }
     }
+
+    private static bool LooksLikePortBusy(string? m)
+        => !string.IsNullOrEmpty(m) &&
+           (m.Contains("53682") || m.Contains("auth webserver") || m.Contains("forbidden by its access permissions"));
 
     private void FillChoices(IReadOnlyList<RcloneExample> examples)
     {
