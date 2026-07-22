@@ -48,7 +48,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Assets\rclone.exe" Link="rclone.exe" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\rclone.exe" Link="rclone.exe" CopyToOutputDirectory="PreserveNewest"
+             Condition="Exists('Assets\rclone.exe')" />
     <Content Include="Assets\app.ico" Link="Assets\app.ico" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\logos\*.png" CopyToOutputDirectory="PreserveNewest" />
     <None Update="app.manifest">
