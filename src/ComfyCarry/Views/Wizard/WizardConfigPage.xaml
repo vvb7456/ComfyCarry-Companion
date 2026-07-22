@@ -5,7 +5,7 @@
     xmlns:local="using:ComfyCarry.Views.Wizard">
     <Grid RowDefinitions="*,Auto">
         <ScrollViewer Grid.Row="0" Padding="40,32,40,16" VerticalScrollBarVisibility="Auto">
-            <StackPanel MaxWidth="640" Spacing="16">
+            <StackPanel MaxWidth="640" HorizontalAlignment="Center" Spacing="16">
                 <TextBlock x:Name="Lbl" Style="{ThemeResource SubtitleTextBlockStyle}"/>
 
                 <!-- OAuth 面板 -->
@@ -47,8 +47,8 @@
         <Border Grid.Row="1" Background="{ThemeResource LayerFillColorDefaultBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                 BorderThickness="0,1,0,0" Padding="40,12">
-            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
-                <Button x:Name="BackBtn" Grid.Column="1" Click="Back_Click"
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                <Button x:Name="BackBtn" Grid.Column="0" Click="Back_Click"
                         Content="上一步" Padding="20,8" MinWidth="100"/>
                 <Button x:Name="NextBtn" Grid.Column="2" Click="Next_Click"
                         Style="{ThemeResource AccentButtonStyle}" Padding="20,8" MinWidth="120"

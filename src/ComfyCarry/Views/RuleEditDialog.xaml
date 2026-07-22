@@ -6,55 +6,68 @@
     PrimaryButtonText="保存"
     CloseButtonText="取消"
     DefaultButton="Primary">
-    <ScrollViewer MaxHeight="560" VerticalScrollBarVisibility="Auto">
-        <StackPanel Spacing="14" Width="520">
-            <!-- 名称 -->
-            <TextBox x:Name="NameBox" Header="名称" PlaceholderText="图片到 D 盘"/>
+    <StackPanel Spacing="14" Width="540">
+        <!-- 校验错误提示 -->
+        <InfoBar x:Name="ErrorBar" Severity="Error" IsOpen="False" IsClosable="True"/>
 
-            <!-- 来源 -->
-            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                <TextBox x:Name="SourceBox" Header="来源（实例目录）" IsReadOnly="True" PlaceholderText="output"/>
-                <Button x:Name="BrowseSourceBtn" Grid.Column="1" Click="BrowseSource_Click" Content="浏览…" VerticalAlignment="Bottom"/>
-            </Grid>
-
-            <!-- 本机文件夹 -->
-            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                <TextBox x:Name="LocalPathBox" Header="本机文件夹" IsReadOnly="True" PlaceholderText="D:\Comfy\图片"/>
-                <Button x:Name="BrowseLocalBtn" Grid.Column="1" Click="BrowseLocal_Click" Content="选择…" VerticalAlignment="Bottom"/>
-            </Grid>
-
-            <!-- 内容 -->
-            <StackPanel Spacing="6">
-                <TextBlock x:Name="ContentLabel" Text="内容"/>
-                <Grid ColumnDefinitions="Auto,Auto,Auto,*" ColumnSpacing="8">
-                    <Button x:Name="ContentImagesBtn" Click="Content_Click" Tag="images" Padding="16,6"/>
-                    <Button x:Name="ContentVideosBtn" Grid.Column="1" Click="Content_Click" Tag="videos" Padding="16,6"/>
-                    <Button x:Name="ContentAllBtn" Grid.Column="2" Click="Content_Click" Tag="all" Padding="16,6"/>
-                    <CheckBox x:Name="SubdirsCheck" Grid.Column="3" VerticalAlignment="Center" HorizontalAlignment="Right"/>
-                </Grid>
-            </StackPanel>
-
-            <!-- 方式 -->
-            <StackPanel Spacing="6">
-                <TextBlock x:Name="MethodLabel" Text="方式"/>
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <Button x:Name="MethodCopyBtn" Click="Method_Click" Tag="copy" Padding="16,6"/>
-                    <Button x:Name="MethodMoveBtn" Click="Method_Click" Tag="move" Padding="16,6"/>
+        <!-- 双列：左基本设置 / 右拉取选项 -->
+        <Grid ColumnDefinitions="*,*" ColumnSpacing="20">
+            <!-- 左列：基本设置 -->
+            <StackPanel Spacing="14">
+                <StackPanel Spacing="4">
+                    <TextBlock x:Name="NameLabel"/>
+                    <TextBox x:Name="NameBox"/>
                 </StackPanel>
-                <InfoBar x:Name="MoveWarn" Severity="Warning" IsOpen="False" IsClosable="False"/>
-            </StackPanel>
 
-            <!-- 触发 -->
-            <StackPanel Spacing="6">
-                <TextBlock x:Name="TriggerLabel" Text="触发"/>
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <Button x:Name="TriggerAutoBtn" Click="Trigger_Click" Tag="watch" Padding="16,6"/>
-                    <Button x:Name="TriggerManualBtn" Click="Trigger_Click" Tag="manual" Padding="16,6"/>
+                <StackPanel Spacing="4">
+                    <TextBlock x:Name="SourceLabel"/>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <TextBox x:Name="SourceBox" IsReadOnly="True"/>
+                        <Button x:Name="BrowseSourceBtn" Grid.Column="1" Click="BrowseSource_Click"/>
+                    </Grid>
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                    <TextBlock x:Name="LocalPathLabel"/>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <TextBox x:Name="LocalPathBox" IsReadOnly="True"/>
+                        <Button x:Name="BrowseLocalBtn" Grid.Column="1" Click="BrowseLocal_Click"/>
+                    </Grid>
                 </StackPanel>
             </StackPanel>
 
-            <!-- 启用 -->
-            <CheckBox x:Name="EnabledCheck" IsChecked="True"/>
-        </StackPanel>
-    </ScrollViewer>
+            <!-- 右列：拉取选项 -->
+            <StackPanel Grid.Column="1" Spacing="14">
+                <StackPanel Spacing="6">
+                    <TextBlock x:Name="ContentLabel"/>
+                    <Grid ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="8">
+                        <Button x:Name="ContentImagesBtn" Click="Content_Click" Tag="images" Padding="16,6"/>
+                        <Button x:Name="ContentVideosBtn" Grid.Column="1" Click="Content_Click" Tag="videos" Padding="16,6"/>
+                        <Button x:Name="ContentAllBtn" Grid.Column="2" Click="Content_Click" Tag="all" Padding="16,6"/>
+                    </Grid>
+                    <CheckBox x:Name="SubdirsCheck"/>
+                </StackPanel>
+
+                <StackPanel Spacing="6">
+                    <TextBlock x:Name="MethodLabel"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button x:Name="MethodCopyBtn" Click="Method_Click" Tag="copy" Padding="16,6"/>
+                        <Button x:Name="MethodMoveBtn" Click="Method_Click" Tag="move" Padding="16,6"/>
+                    </StackPanel>
+                    <InfoBar x:Name="MoveWarn" Severity="Warning" IsOpen="False" IsClosable="False"/>
+                </StackPanel>
+
+                <StackPanel Spacing="6">
+                    <TextBlock x:Name="TriggerLabel"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button x:Name="TriggerAutoBtn" Click="Trigger_Click" Tag="watch" Padding="16,6"/>
+                        <Button x:Name="TriggerManualBtn" Click="Trigger_Click" Tag="manual" Padding="16,6"/>
+                    </StackPanel>
+                </StackPanel>
+            </StackPanel>
+        </Grid>
+
+        <!-- 启用 -->
+        <CheckBox x:Name="EnabledCheck" IsChecked="True"/>
+    </StackPanel>
 </ContentDialog>

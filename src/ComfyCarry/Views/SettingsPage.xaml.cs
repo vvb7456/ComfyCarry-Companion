@@ -37,7 +37,9 @@ public sealed partial class SettingsPage : Page
         ProxyHeader.Text = L.T("settings.proxy");
         ProxyHint.Text = L.T("settings.proxy.hint");
         AboutHeader.Text = L.T("settings.about");
-        VersionLine.Text = $"{L.T("settings.about.version")}: 1.0.0";
+        AboutDesc.Text = L.T("settings.about.desc");
+        var ver = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+        VersionLine.Text = $"{L.T("settings.about.version")}: {ver?.Major ?? 1}.{ver?.Minor ?? 0}.{ver?.Build ?? 0}";
     }
 
     private void LoadSettings()
@@ -67,12 +69,14 @@ public sealed partial class SettingsPage : Page
 
     private void Lang_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        if (_loading) return;
         if (LangRadios.SelectedItem is RadioButton rb && rb.Tag is string lang)
             App.Hub.Settings.Update(s => s.Language = lang);
     }
 
     private void Theme_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        if (_loading) return;
         if (ThemeRadios.SelectedItem is RadioButton rb && rb.Tag is string t)
         {
             App.Hub.Settings.Update(s => s.Theme = t switch
@@ -114,10 +118,20 @@ public sealed partial class SettingsPage : Page
             App.Hub.Instances.SetCurrent(id);
     }
 
-    private void DeleteInstance_Click(object sender, RoutedEventArgs e)
+    private async void DeleteInstance_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is Button b && b.Tag is string id)
-            App.Hub.Instances.Remove(id);
+        if (sender is not Button b || b.Tag is not string id) return;
+        var confirm = new ContentDialog
+        {
+            Title = L.T("common.delete"),
+            Content = L.T("cloud.home.deleteConfirm"),
+            PrimaryButtonText = L.T("common.delete"),
+            CloseButtonText = L.T("common.cancel"),
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = this.XamlRoot,
+        };
+        if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
+        App.Hub.Instances.Remove(id);
     }
 }
 
@@ -126,6 +140,8 @@ public sealed class InstanceVM
     public string Id { get; set; } = "";
     public string Label { get; set; } = "";
     public string BaseUrl { get; set; } = "";
+    public string SetCurrentLabel => App.Hub.Locale.T("settings.instance.setCurrent");
+    public string DeleteLabel => App.Hub.Locale.T("common.delete");
     public InstanceVM(PanelInstance inst)
     {
         Id = inst.Id;

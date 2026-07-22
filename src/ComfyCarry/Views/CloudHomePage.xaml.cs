@@ -117,9 +117,19 @@ public sealed partial class CloudHomePage : Page
         this.Frame.Navigate(typeof(WizardTypePage));
     }
 
-    private void Delete_Click(object sender, RoutedEventArgs e)
+    private async void Delete_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button btn || btn.Tag is not string name) return;
+        var confirm = new ContentDialog
+        {
+            Title = L.T("common.delete"),
+            Content = L.T("cloud.home.deleteConfirm"),
+            PrimaryButtonText = L.T("common.delete"),
+            CloseButtonText = L.T("common.cancel"),
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = this.XamlRoot,
+        };
+        if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
         try
         {
             var conf = App.Hub.Paths.AppRcloneConf;
@@ -139,7 +149,17 @@ public sealed partial class CloudHomePage : Page
             File.WriteAllLines(conf, result);
             LoadRemotes();
         }
-        catch { }
+        catch (Exception ex)
+        {
+            var err = new ContentDialog
+            {
+                Title = L.T("cloud.delete.fail"),
+                Content = ex.Message,
+                CloseButtonText = L.T("common.ok"),
+                XamlRoot = this.XamlRoot,
+            };
+            _ = await err.ShowAsync();
+        }
     }
 
     private async void Export_Click(object sender, RoutedEventArgs e)
@@ -162,7 +182,17 @@ public sealed partial class CloudHomePage : Page
                 await FileIO.WriteTextAsync(file, content);
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            var err = new ContentDialog
+            {
+                Title = L.T("cloud.export.fail"),
+                Content = ex.Message,
+                CloseButtonText = L.T("common.ok"),
+                XamlRoot = this.XamlRoot,
+            };
+            _ = await err.ShowAsync();
+        }
     }
 }
 
@@ -170,4 +200,5 @@ public sealed class RemoteVM
 {
     public string Name { get; set; } = "";
     public Microsoft.UI.Xaml.Media.Imaging.BitmapImage? LogoUri { get; set; }
+    public string DeleteLabel => App.Hub.Locale.T("common.delete");
 }

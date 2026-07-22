@@ -21,14 +21,16 @@ public sealed partial class ConnectDialog : ContentDialog
         CloseButtonText = L.T("common.cancel");
         UrlBox.Header = L.T("pull.panelUrl");
         PwdBox.Header = L.T("pull.panelPwd");
+        LabelBox.Header = L.T("pull.connect.label");
     }
 
     private async void ConnectDialog_PrimaryButtonClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
     {
         var def = args.GetDeferral();
         Busy.IsActive = true;
+        Busy.Visibility = Visibility.Visible;
         Status.Visibility = Visibility.Visible;
-        Status.Text = "正在连接…";
+        Status.Text = L.T("pull.connect.connecting");
         IsPrimaryButtonEnabled = false;
         try
         {
@@ -37,7 +39,7 @@ public sealed partial class ConnectDialog : ContentDialog
             var cr = await App.Hub.Api.ConnectAsync(url, pwd);
             if (!cr.Ok || string.IsNullOrEmpty(cr.ApiKey))
             {
-                Status.Text = "连接失败：" + (cr.Error ?? "未知错误");
+                Status.Text = L.T("pull.connect.failed") + (cr.Error ?? L.T("pull.connect.unknownError"));
                 args.Cancel = true;
                 return;
             }
@@ -59,16 +61,17 @@ public sealed partial class ConnectDialog : ContentDialog
             App.Hub.Instances.Upsert(inst);
             // 确保 webdav remote
             await App.Hub.Rclone.EnsureInstanceWebdavRemoteAsync(inst);
-            Status.Text = "连接成功 ✓";
+            Status.Text = L.T("pull.connect.success");
         }
         catch (Exception ex)
         {
-            Status.Text = "异常：" + ex.Message;
+            Status.Text = L.T("pull.connect.exception") + ex.Message;
             args.Cancel = true;
         }
         finally
         {
             Busy.IsActive = false;
+            Busy.Visibility = Visibility.Collapsed;
             IsPrimaryButtonEnabled = true;
             def.Complete();
         }

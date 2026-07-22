@@ -41,6 +41,9 @@ public sealed class RuleEngine
     }
 
     /// <summary>从本地 RuleStore 刷新规则列表（无网络）。</summary>
+    /// <remarks>不触发 StateChanged：Refresh 是读操作，调用方（RefreshUI/SaveRule/DeleteRule）
+    /// 本身已由 RuleStore.Changed 或显式 SetActive/MarkIdle 等事件驱动 UI 刷新，
+    /// 在此处 fire StateChanged 会形成 RefreshUI -> Refresh -> StateChanged -> RefreshUI 无限循环。</remarks>
     public void Refresh(PanelInstance inst)
     {
         var label = inst.InstanceLabel;
@@ -52,7 +55,6 @@ public sealed class RuleEngine
                 Rules.Clear();
                 foreach (var r in rules) Rules.Add(r);
             }
-            StateChanged?.Invoke();
         });
     }
 

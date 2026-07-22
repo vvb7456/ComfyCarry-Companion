@@ -497,23 +497,26 @@ public sealed class RcloneService
         {
             "lsf", $"{remoteName}:{remotePath}",
             "--config", _paths.AppRcloneConf,
-            "--format", "pspt",   // p=path s=size p=perm t=time
+            "--format", "ps",   // p=path s=size
             "--separator", "|",
-            "--dirs-only",        // 拆两次：先目录后文件，简化
-        };
-        // 简化：直接用 lsf 不带 --dirs-only 取文件，再单独取目录
-        args = new List<string>
-        {
-            "lsf", $"{remoteName}:{remotePath}",
-            "--config", _paths.AppRcloneConf,
-            "--files-only",
+            // 不加 --files-only / --dirs-only：同时列文件和目录
         };
         var (code, stdout, _) = await RunAsync(args, null, ct);
         var list = new List<RemoteEntry>();
         if (code != 0) return list;
         foreach (var line in stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries))
         {
-            list.Add(new RemoteEntry { Name = line.Trim(), IsDir = false });
+            var parts = line.Split('|');
+            var name = parts[0].Trim();
+            if (string.IsNullOrEmpty(name)) continue;
+            // rclone lsf 对目录输出带尾部 '/'，文件无
+            bool isDir = name.EndsWith('/');
+            list.Add(new RemoteEntry
+            {
+                Name = isDir ? name.TrimEnd('/') : name,
+                IsDir = isDir,
+                Size = parts.Length > 1 && long.TryParse(parts[1], out var sz) ? sz : 0,
+            });
         }
         return list;
     }

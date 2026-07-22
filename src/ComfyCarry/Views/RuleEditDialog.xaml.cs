@@ -33,9 +33,11 @@ public sealed partial class RuleEditDialog : ContentDialog
         Title = _isNew ? L.T("pull.rule.new") : L.T("common.edit");
         PrimaryButtonText = L.T("common.save");
         CloseButtonText = L.T("common.cancel");
-        NameBox.Header = App.Hub.Settings.Data.Language == "en-US" ? "Name" : "名称";
-        SourceBox.Header = L.T("pull.rule.source");
-        LocalPathBox.Header = L.T("pull.rule.localPath");
+        NameLabel.Text = L.T("pull.rule.name") + " *";
+        SourceLabel.Text = L.T("pull.rule.source");
+        LocalPathLabel.Text = L.T("pull.rule.localPath") + " *";
+        BrowseSourceBtn.Content = L.T("common.browse");
+        BrowseLocalBtn.Content = L.T("pull.rule.select");
         ContentLabel.Text = L.T("pull.rule.content");
         ContentImagesBtn.Content = L.T("pull.rule.content.images");
         ContentVideosBtn.Content = L.T("pull.rule.content.videos");
@@ -99,30 +101,41 @@ public sealed partial class RuleEditDialog : ContentDialog
     {
         var inst = App.Hub.Instances.Current;
         if (inst is null) return;
+        List<string> dirs;
         try
         {
             var entries = await App.Hub.Rclone.LsfAsync(inst, "output");
-            var dirs = entries.Where(en => en.IsDir).Select(en => en.Name.TrimEnd('/')).ToList();
-            if (dirs.Count == 0) { SourceBox.Text = "output"; Rule.Source = ""; return; }
-            var dlg = new ContentDialog
-            {
-                Title = L.T("pull.rule.source"),
-                CloseButtonText = L.T("common.cancel"),
-                PrimaryButtonText = L.T("common.ok"),
-                XamlRoot = this.XamlRoot,
-            };
-            var list = new ListView { SelectionMode = ListViewSelectionMode.Single };
-            list.Items.Add("(output)");
-            foreach (var d in dirs) list.Items.Add(d);
-            dlg.Content = list;
-            var r = await dlg.ShowAsync();
-            if (r == ContentDialogResult.Primary && list.SelectedItem is string sel)
-            {
-                if (sel.StartsWith("(")) { Rule.Source = ""; SourceBox.Text = "output"; }
-                else { Rule.Source = sel; SourceBox.Text = $"output/{sel}"; }
-            }
+            dirs = entries.Where(en => en.IsDir).Select(en => en.Name.TrimEnd('/')).ToList();
         }
-        catch { SourceBox.Text = "output"; Rule.Source = ""; }
+        catch
+        {
+            ErrorBar.Message = L.T("pull.connect.browse.fail");
+            ErrorBar.IsOpen = true;
+            return;
+        }
+        if (dirs.Count == 0)
+        {
+            SourceBox.Text = "output";
+            Rule.Source = "";
+            return;
+        }
+        var dlg = new ContentDialog
+        {
+            Title = L.T("pull.rule.source"),
+            CloseButtonText = L.T("common.cancel"),
+            PrimaryButtonText = L.T("common.ok"),
+            XamlRoot = this.XamlRoot,
+        };
+        var list = new ListView { SelectionMode = ListViewSelectionMode.Single };
+        list.Items.Add("output");
+        foreach (var d in dirs) list.Items.Add(d);
+        dlg.Content = list;
+        var r = await dlg.ShowAsync();
+        if (r == ContentDialogResult.Primary && list.SelectedItem is string sel)
+        {
+            if (sel == "output") { Rule.Source = ""; SourceBox.Text = "output"; }
+            else { Rule.Source = sel; SourceBox.Text = $"output/{sel}"; }
+        }
     }
 
     private async void BrowseLocal_Click(object sender, RoutedEventArgs e)
@@ -142,6 +155,12 @@ public sealed partial class RuleEditDialog : ContentDialog
         var local = LocalPathBox.Text.Trim();
         if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(local))
         {
+            var missing = new List<string>();
+            if (string.IsNullOrEmpty(name)) missing.Add(L.T("pull.rule.name"));
+            if (string.IsNullOrEmpty(local)) missing.Add(L.T("pull.rule.localPath"));
+            var sep = App.Hub.Settings.Data.Language == "en-US" ? ", " : "、";
+            ErrorBar.Message = L.T("pull.rule.validate.required") + string.Join(sep, missing);
+            ErrorBar.IsOpen = true;
             args.Cancel = true;
             return;
         }

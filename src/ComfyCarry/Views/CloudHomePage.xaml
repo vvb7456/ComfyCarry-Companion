@@ -44,7 +44,8 @@
                                         <Image Source="{x:Bind LogoUri}" Width="24" Height="24" VerticalAlignment="Center"/>
                                         <TextBlock Grid.Column="1" Text="{x:Bind Name}" VerticalAlignment="Center"/>
                                         <Button Grid.Column="2" Tag="{x:Bind Name}" Click="Delete_Click"
-                                                Padding="12,4" FontSize="12" Content="删除" VerticalAlignment="Center"/>
+                                                Padding="12,4" FontSize="12" VerticalAlignment="Center"
+                                                Content="{x:Bind DeleteLabel}"/>
                                     </Grid>
                                 </DataTemplate>
                             </ListView.ItemTemplate>

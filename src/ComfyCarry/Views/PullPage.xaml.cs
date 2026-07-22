@@ -10,6 +10,7 @@ public sealed partial class PullPage : Page
 {
     private LocalizationService L => App.Hub.Locale;
     private bool _suppressSelection;
+    private bool _loading;
 
     public PullPage()
     {
@@ -69,7 +70,9 @@ public sealed partial class PullPage : Page
         DavHostText.Text = connected && !string.IsNullOrEmpty(inst.DavUrl) ? inst.DavUrl : "";
 
         // 自动取回
+        _loading = true;
         AutoPullSwitch.IsOn = !App.Hub.Pull.Paused;
+        _loading = false;
         var status = App.Hub.Rules.Status;
         PullStatusText.Text = status == "syncing"
             ? $"{L.T("pull.autoPull.status.syncing")} · {App.Hub.Rules.ActiveFile}"
@@ -95,6 +98,7 @@ public sealed partial class PullPage : Page
 
     private void AutoPull_Toggled(object sender, RoutedEventArgs e)
     {
+        if (_loading) return;
         App.Hub.Pull.Paused = !AutoPullSwitch.IsOn;
     }
 
@@ -162,23 +166,33 @@ public sealed partial class PullPage : Page
             _ = Windows.System.Launcher.LaunchFolderPathAsync(path);
     }
 
-    private void DeleteRule_Click(object sender, RoutedEventArgs e)
+    private async void DeleteRule_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button btn || btn.Tag is not string ruleId) return;
         var inst = App.Hub.Instances.Current;
         if (inst is null) return;
+        var confirm = new ContentDialog
+        {
+            Title = L.T("common.delete"),
+            Content = L.T("pull.rule.deleteConfirm"),
+            PrimaryButtonText = L.T("common.delete"),
+            CloseButtonText = L.T("common.cancel"),
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = this.XamlRoot,
+        };
+        if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
         App.Hub.Rules.DeleteRule(inst, ruleId);
     }
 
-    private void RuleEnabled_Toggled(object sender, RoutedEventArgs e)
+    private void RuleEnabled_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not ToggleSwitch ts || ts.Tag is not string ruleId) return;
+        if (sender is not CheckBox cb || cb.Tag is not string ruleId) return;
         var inst = App.Hub.Instances.Current;
         if (inst is null) return;
         var rule = App.Hub.RuleStore.RulesFor(inst.InstanceLabel).FirstOrDefault(r => r.RuleId == ruleId);
         if (rule is not null)
         {
-            rule.Enabled = ts.IsOn;
+            rule.Enabled = cb.IsChecked == true;
             App.Hub.RuleStore.Upsert(inst.InstanceLabel, rule);
         }
     }
@@ -192,12 +206,17 @@ public sealed class PullRuleVM
     public PullRuleVM(PullRule r, LocalizationService l) { _r = r; _l = l; }
 
     public string RuleId => _r.RuleId;
-    public string Name => string.IsNullOrEmpty(_r.Name) ? "(unnamed)" : _r.Name;
+    public string Name => string.IsNullOrEmpty(_r.Name) ? _l.T("pull.rule.unnamed") : _r.Name;
     public string LocalPath => _r.LocalPath;
     public bool Enabled { get => _r.Enabled; set => _r.Enabled = value; }
 
     public string MethodLabel => _r.Method == "move" ? _l.T("pull.rule.method.move") : _l.T("pull.rule.method.copy");
     public string TriggerLabel => _r.Trigger == "manual" ? _l.T("pull.rule.trigger.manual") : _l.T("pull.rule.trigger.auto");
+
+    public string RunLabel => _l.T("pull.rule.run");
+    public string EditLabel => _l.T("common.edit");
+    public string OpenLabel => _l.T("pull.rule.open");
+    public string DeleteLabel => _l.T("common.delete");
 
     public string PathSummary
     {

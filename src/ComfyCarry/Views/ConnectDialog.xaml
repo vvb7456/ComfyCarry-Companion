@@ -7,10 +7,10 @@
     CloseButtonText="取消"
     DefaultButton="Primary">
     <StackPanel Spacing="12" Width="440">
-        <TextBox x:Name="UrlBox" Header="面板 URL" PlaceholderText="https://comfy.example.com"/>
+        <TextBox x:Name="UrlBox" Header="面板 URL"/>
         <PasswordBox x:Name="PwdBox" Header="面板密码"/>
-        <TextBox x:Name="LabelBox" Header="显示名（可选）" PlaceholderText="runpod-a1b2"/>
+        <TextBox x:Name="LabelBox" Header="显示名（可选）"/>
         <TextBlock x:Name="Status" TextWrapping="Wrap" Visibility="Collapsed"/>
-        <ProgressRing x:Name="Busy" IsActive="False" Width="32" Height="32"/>
+        <ProgressRing x:Name="Busy" IsActive="False" Width="32" Height="32" Visibility="Collapsed"/>
     </StackPanel>
 </ContentDialog>

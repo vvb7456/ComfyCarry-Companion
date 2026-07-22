@@ -15,8 +15,8 @@
         </StackPanel>
 
         <!-- 主内容 -->
-        <ScrollViewer x:Name="MainContent" Padding="40,32,40,16" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
-            <StackPanel MaxWidth="720" Spacing="20">
+        <ScrollViewer x:Name="MainContent" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+            <StackPanel Padding="40,32,40,16" MaxWidth="720" HorizontalAlignment="Center" Spacing="20">
                 <!-- 标题 -->
                 <StackPanel Spacing="4">
                     <TextBlock x:Name="TitleText" Style="{ThemeResource SubtitleTextBlockStyle}"/>
@@ -36,14 +36,14 @@
 
                 <!-- 自动取回条 -->
                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
-                    <ToggleSwitch x:Name="AutoPullSwitch" Toggled="AutoPull_Toggled"/>
-                    <TextBlock x:Name="AutoPullDesc" Grid.Column="1" VerticalAlignment="Center" Opacity="0.6" FontSize="12"/>
+                    <ToggleSwitch x:Name="AutoPullSwitch" Toggled="AutoPull_Toggled" OnContent="" OffContent="" MinWidth="80"/>
+                    <TextBlock x:Name="AutoPullDesc" Grid.Column="1" VerticalAlignment="Center" Opacity="0.6" FontSize="12" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
                     <TextBlock x:Name="PullStatusText" Grid.Column="2" VerticalAlignment="Center" FontSize="12"/>
                 </Grid>
 
                 <!-- 规则区 -->
                 <StackPanel Spacing="12">
-                    <Grid ColumnDefinitions="*,Auto">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                         <TextBlock x:Name="RulesHeader" Style="{ThemeResource BodyStrongTextBlockStyle}" VerticalAlignment="Center"/>
                         <Button x:Name="NewRuleBtn" Grid.Column="1" Click="NewRule_Click" Style="{ThemeResource AccentButtonStyle}" Padding="16,6">
                             <StackPanel Orientation="Horizontal" Spacing="6">
@@ -70,7 +70,7 @@
                                         BorderThickness="1" CornerRadius="8" Padding="16">
                                     <StackPanel Spacing="8">
                                         <!-- 第一行：名称 + chips + 启用 -->
-                                        <Grid ColumnDefinitions="*,Auto">
+                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                                             <StackPanel Orientation="Horizontal" Spacing="8">
                                                 <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                                                 <Border Background="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
@@ -80,9 +80,8 @@
                                                     <TextBlock Text="{x:Bind TriggerLabel}" FontSize="11"/>
                                                 </Border>
                                             </StackPanel>
-                                            <ToggleSwitch Grid.Column="1" IsOn="{x:Bind Enabled, Mode=TwoWay}"
-                                                          OnContent="" OffContent="" MinWidth="44"
-                                                          Toggled="RuleEnabled_Toggled" Tag="{x:Bind RuleId}"/>
+                                            <CheckBox Grid.Column="1" IsChecked="{x:Bind Enabled, Mode=TwoWay}"
+                                                      Click="RuleEnabled_Click" Tag="{x:Bind RuleId}" MinWidth="0"/>
                                         </Grid>
                                         <!-- 第二行：路径 -->
                                         <TextBlock Text="{x:Bind PathSummary}" Opacity="0.7" FontSize="12" TextTrimming="CharacterEllipsis"/>
@@ -92,13 +91,13 @@
                                             <TextBlock Grid.Column="1" Text="{x:Bind ProgressLabel}" FontSize="11" VerticalAlignment="Center"/>
                                         </Grid>
                                         <!-- 第四行：上次结果 + 操作 -->
-                                        <Grid ColumnDefinitions="*,Auto">
-                                            <TextBlock Text="{x:Bind LastRunText}" Opacity="0.5" FontSize="11" VerticalAlignment="Center"/>
+                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                            <TextBlock Text="{x:Bind LastRunText}" Opacity="0.5" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
-                                                <Button Content="拉取" Tag="{x:Bind RuleId}" Click="RunOnce_Click" Padding="10,4" FontSize="12"/>
-                                                <Button Content="编辑" Tag="{x:Bind RuleId}" Click="EditRule_Click" Padding="10,4" FontSize="12"/>
-                                                <Button Content="打开" Tag="{x:Bind LocalPath}" Click="OpenFolder_Click" Padding="10,4" FontSize="12"/>
-                                                <Button Content="删除" Tag="{x:Bind RuleId}" Click="DeleteRule_Click" Padding="10,4" FontSize="12"/>
+                                                <Button Content="{x:Bind RunLabel}" Tag="{x:Bind RuleId}" Click="RunOnce_Click" Padding="10,4" FontSize="12"/>
+                                                <Button Content="{x:Bind EditLabel}" Tag="{x:Bind RuleId}" Click="EditRule_Click" Padding="10,4" FontSize="12"/>
+                                                <Button Content="{x:Bind OpenLabel}" Tag="{x:Bind LocalPath}" Click="OpenFolder_Click" Padding="10,4" FontSize="12"/>
+                                                <Button Content="{x:Bind DeleteLabel}" Tag="{x:Bind RuleId}" Click="DeleteRule_Click" Padding="10,4" FontSize="12"/>
                                             </StackPanel>
                                         </Grid>
                                     </StackPanel>

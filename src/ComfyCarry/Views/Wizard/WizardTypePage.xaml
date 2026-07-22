@@ -5,7 +5,7 @@
     <Grid RowDefinitions="*,Auto">
         <!-- 内容区：可滚动 -->
         <ScrollViewer Grid.Row="0" Padding="40,32,40,16" VerticalScrollBarVisibility="Auto">
-            <StackPanel MaxWidth="640" Spacing="16">
+            <StackPanel MaxWidth="640" HorizontalAlignment="Center" Spacing="16">
                 <TextBlock x:Name="Lbl" Style="{ThemeResource SubtitleTextBlockStyle}"/>
                 <RadioButtons x:Name="TypeRadios" MaxColumns="1" SelectionChanged="Type_SelectionChanged"/>
             </StackPanel>
