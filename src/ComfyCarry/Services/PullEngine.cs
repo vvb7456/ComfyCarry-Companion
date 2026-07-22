@@ -13,6 +13,7 @@ public sealed class PullEngine
 {
     private readonly RcloneService _rclone;
     private readonly RuleEngine _rules;
+    private readonly RuleStore _ruleStore;
     private readonly JobReporter _jobs;
     private readonly InstanceStore _instances;
     private readonly AppPaths _paths;
@@ -22,11 +23,12 @@ public sealed class PullEngine
 
     public bool Paused { get; set; }
 
-    public PullEngine(RcloneService rclone, RuleEngine rules, JobReporter jobs,
+    public PullEngine(RcloneService rclone, RuleEngine rules, RuleStore ruleStore, JobReporter jobs,
         InstanceStore instances, AppPaths paths, SettingsService settings, CancellationToken appToken)
     {
         _rclone = rclone;
         _rules = rules;
+        _ruleStore = ruleStore;
         _jobs = jobs;
         _instances = instances;
         _paths = paths;
@@ -54,9 +56,8 @@ public sealed class PullEngine
         if (inst is null) return;
         try
         {
-            // 拉取最新规则
-            await _rules.RefreshAsync(inst, _appToken);
-            var watchRules = _rules.Rules.Where(r => r.Enabled && r.Trigger == "watch" && !string.IsNullOrEmpty(r.LocalPath)).ToList();
+            var watchRules = _ruleStore.RulesFor(inst.InstanceLabel)
+                .Where(r => r.Enabled && r.Trigger == "watch" && !string.IsNullOrEmpty(r.LocalPath)).ToList();
             foreach (var rule in watchRules)
             {
                 if (_appToken.IsCancellationRequested) break;
@@ -91,8 +92,9 @@ public sealed class PullEngine
 
         _rules.SetActive(rule);
         string? jobId = await _jobs.StartAsync(inst, rule, ct);
-        await _jobs.EventAsync(inst, jobId, new JobEventRequest { Type = "rule_start", Message = rule.Name }, ct);
+        await _jobs.EventAsync(inst, jobId, "rule_start_pull", rule.RuleId, pars: new() { ["name"] = rule.Name }, ct: ct);
 
+        int filesSynced = 0;
         try
         {
             int code = await _rclone.PullAsync(inst, rule, async entry =>
@@ -103,50 +105,48 @@ public sealed class PullEngine
                     long speed = entry.Speed is { } s ? (long)s : (long)(entry.Stats?.Speed ?? 0);
                     string file = entry.Object ?? entry.Name ?? "";
                     _rules.ReportProgress(file, pct, speed);
-                    await _jobs.EventAsync(inst, jobId, new JobEventRequest
-                    {
-                        Type = "file_transferred",
-                        File = file,
-                        Pct = pct,
-                        Speed = speed,
-                        Message = entry.Msg,
-                    }, ct);
+                    filesSynced++;
+                    await _jobs.EventAsync(inst, jobId, "file_done", rule.RuleId, pars: new() { ["file"] = file, ["pct"] = pct, ["speed"] = speed }, ct: ct);
                 }
                 else if (entry.Level == "error")
                 {
-                    await _jobs.EventAsync(inst, jobId, new JobEventRequest
-                    {
-                        Type = "log",
-                        Level = "error",
-                        Message = entry.Msg,
-                    }, ct);
+                    await _jobs.EventAsync(inst, jobId, "rule_error", rule.RuleId, "error", new() { ["msg"] = entry.Msg }, ct);
                 }
             }, ct);
 
+            rule.LastResult = code == 0 ? $"{filesSynced} 文件 · 成功" : $"失败: rclone exit {code}";
+            rule.LastRunAt = DateTime.Now;
+            _ruleStore.Upsert(inst.InstanceLabel, rule);
+
             if (code == 0)
             {
-                await _jobs.EventAsync(inst, jobId, new JobEventRequest { Type = "rule_done" }, ct);
-                await _jobs.FinishAsync(inst, jobId, "ok", null, ct);
+                await _jobs.FinishAsync(inst, jobId, "success", filesSynced: filesSynced, summary: rule.Name, ct: ct);
                 rule.StatusText = "idle";
                 _rules.MarkIdle();
                 return true;
             }
             else
             {
-                await _jobs.FinishAsync(inst, jobId, "error", $"rclone exit {code}", ct);
+                await _jobs.FinishAsync(inst, jobId, "failed", filesSynced: filesSynced, summary: $"rclone exit {code}", ct: ct);
                 _rules.MarkError($"rclone exit {code}");
                 return false;
             }
         }
         catch (OperationCanceledException)
         {
-            await _jobs.FinishAsync(inst, jobId, "error", "cancelled", ct);
+            rule.LastResult = "已取消";
+            rule.LastRunAt = DateTime.Now;
+            _ruleStore.Upsert(inst.InstanceLabel, rule);
+            await _jobs.FinishAsync(inst, jobId, "cancelled", filesSynced: filesSynced, summary: "cancelled", ct: CancellationToken.None);
             _rules.MarkIdle();
             return false;
         }
         catch (Exception ex)
         {
-            await _jobs.FinishAsync(inst, jobId, "error", ex.Message, ct);
+            rule.LastResult = $"失败: {ex.Message}";
+            rule.LastRunAt = DateTime.Now;
+            _ruleStore.Upsert(inst.InstanceLabel, rule);
+            await _jobs.FinishAsync(inst, jobId, "failed", filesSynced: filesSynced, summary: ex.Message, ct: CancellationToken.None);
             _rules.MarkError(ex.Message);
             return false;
         }

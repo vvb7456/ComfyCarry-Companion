@@ -2,10 +2,7 @@ using ComfyCarry.Models;
 
 namespace ComfyCarry.Services;
 
-/// <summary>
-/// 把 rclone 拉取过程回报面板 Job（SPEC §2.5）。
-/// 失败静默降级（不阻塞拉取）。
-/// </summary>
+/// <summary>Job 回报面板（失败静默降级）。</summary>
 public sealed class JobReporter
 {
     private readonly CompanionApiClient _api;
@@ -20,20 +17,33 @@ public sealed class JobReporter
             {
                 RuleId = rule.RuleId,
                 ClientId = inst.ClientId,
-                TriggerType = "companion",
+                RuleCount = 1,
             }, ct);
         }
         catch { return null; }
     }
 
-    public async Task EventAsync(PanelInstance inst, string? jobId, JobEventRequest ev, CancellationToken ct = default)
+    public async Task EventAsync(PanelInstance inst, string? jobId, string key,
+        string? ruleId = null, string? level = null, Dictionary<string, object>? pars = null,
+        CancellationToken ct = default)
     {
         if (string.IsNullOrEmpty(jobId)) return;
-        try { await _api.AppendJobEventAsync(inst, jobId, ev, ct); }
-        catch { /* 降级 */ }
+        try
+        {
+            await _api.AppendJobEventAsync(inst, jobId, new JobEventRequest
+            {
+                Key = key,
+                RuleId = ruleId,
+                Level = level,
+                Params = pars,
+            }, ct);
+        }
+        catch { }
     }
 
-    public async Task FinishAsync(PanelInstance inst, string? jobId, string status, string? msg, CancellationToken ct = default)
+    public async Task FinishAsync(PanelInstance inst, string? jobId, string status,
+        int successCount = 0, int failureCount = 0, int filesSynced = 0, string? summary = null,
+        CancellationToken ct = default)
     {
         if (string.IsNullOrEmpty(jobId)) return;
         try
@@ -41,9 +51,12 @@ public sealed class JobReporter
             await _api.FinishJobAsync(inst, jobId, new JobFinishRequest
             {
                 Status = status,
-                Message = msg,
+                SuccessCount = successCount,
+                FailureCount = failureCount,
+                FilesSynced = filesSynced,
+                Summary = summary,
             }, ct);
         }
-        catch { /* 降级 */ }
+        catch { }
     }
 }

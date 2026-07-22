@@ -1,6 +1,7 @@
-using System.Collections.ObjectModel;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Navigation;
+using ComfyCarry.Models;
 using ComfyCarry.Services;
 
 namespace ComfyCarry.Views;
@@ -8,195 +9,218 @@ namespace ComfyCarry.Views;
 public sealed partial class PullPage : Page
 {
     private LocalizationService L => App.Hub.Locale;
-    public ObservableCollection<PullRuleVM> Rules { get; } = new();
+    private bool _suppressSelection;
 
     public PullPage()
     {
         this.InitializeComponent();
-        RulesList.ItemsSource = Rules;
+        App.Hub.Rules.AttachUi(DispatcherQueue);
+        App.Hub.Rules.StateChanged += () => DispatcherQueue.TryEnqueue(RefreshUI);
+        App.Hub.RuleStore.Changed += () => DispatcherQueue.TryEnqueue(RefreshUI);
+    }
+
+    protected override void OnNavigatedTo(NavigationEventArgs e)
+    {
+        base.OnNavigatedTo(e);
         Localize();
-        LoadInstances();
-        App.Hub.Instances.Changed += () => DispatcherQueue.TryEnqueue(LoadInstances);
-        App.Hub.Rules.StateChanged += () => DispatcherQueue.TryEnqueue(RefreshRulesUI);
-        App.Hub.Settings.Changed += () => DispatcherQueue.TryEnqueue(Localize);
-        Loaded += async (_, _) => await RefreshAll();
+        RefreshUI();
     }
 
     private void Localize()
     {
-        IntroText.Text = L.T("pull.intro");
-        ConnectBtn.Content = L.T("pull.addInstance");
-        RefreshBtn.Content = L.T("common.refresh");
-        NewRuleBtn.Content = L.T("pull.rule.new");
-        RulesHeader.Text = L.T("pull.rules");
-        NoRulesText.Text = L.T("pull.noRules");
+        TitleText.Text = L.T("pull.title");
+        SubtitleText.Text = L.T("pull.subtitle");
         EmptyTitle.Text = L.T("pull.empty.title");
         EmptyDesc.Text = L.T("pull.empty.desc");
         EmptyConnectBtn.Content = L.T("pull.connect");
+        AddInstanceBtn.Content = L.T("pull.addInstance");
+        AutoPullSwitch.Header = L.T("pull.autoPull");
+        AutoPullDesc.Text = L.T("pull.autoPull.desc");
+        RulesHeader.Text = L.T("pull.rules");
+        NewRuleLabel.Text = L.T("pull.rule.new");
+        NoRulesText.Text = L.T("pull.noRules");
     }
 
-    private void LoadInstances()
+    private void RefreshUI()
     {
-        InstanceBox.Items.Clear();
-        foreach (var inst in App.Hub.Instances.All)
+        var inst = App.Hub.Instances.Current;
+        if (inst is null)
         {
-            var label = string.IsNullOrEmpty(inst.Label) ? inst.BaseUrl : inst.Label;
-            var item = new ComboBoxItem { Content = label, Tag = inst };
-            if (inst.IsCurrent) InstanceBox.SelectedItem = item;
-            InstanceBox.Items.Add(item);
+            EmptyState.Visibility = Visibility.Visible;
+            MainContent.Visibility = Visibility.Collapsed;
+            return;
         }
-        var hasInstances = App.Hub.Instances.All.Count > 0;
-        EmptyState.Visibility = hasInstances ? Visibility.Collapsed : Visibility.Visible;
-        MainContent.Visibility = hasInstances ? Visibility.Visible : Visibility.Collapsed;
+        EmptyState.Visibility = Visibility.Collapsed;
+        MainContent.Visibility = Visibility.Visible;
+
+        // 实例下拉
+        _suppressSelection = true;
+        var names = App.Hub.Instances.All.Select(i => i.BaseUrl).ToList();
+        InstanceBox.ItemsSource = names;
+        InstanceBox.SelectedItem = inst.BaseUrl;
+        _suppressSelection = false;
+
+        // 连接状态
+        bool connected = !string.IsNullOrEmpty(inst.ApiKey);
+        StatusDot.Fill = connected
+            ? new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.LimeGreen)
+            : new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray);
+        StatusText.Text = connected ? L.T("pull.connect.status.ok") : L.T("pull.connect.status.no");
+        DavHostText.Text = connected && !string.IsNullOrEmpty(inst.DavUrl) ? inst.DavUrl : "";
+
+        // 自动取回
+        AutoPullSwitch.IsOn = !App.Hub.Pull.Paused;
+        var status = App.Hub.Rules.Status;
+        PullStatusText.Text = status == "syncing"
+            ? $"{L.T("pull.autoPull.status.syncing")} · {App.Hub.Rules.ActiveFile}"
+            : L.T("pull.autoPull.status.idle");
+
+        // 规则列表
+        App.Hub.Rules.Refresh(inst);
+        var vms = App.Hub.Rules.Rules.Select(r => new PullRuleVM(r, L)).ToList();
+        RulesList.ItemsSource = vms;
+        NoRulesText.Visibility = vms.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void Instance_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (InstanceBox.SelectedItem is ComboBoxItem ci && ci.Tag is PanelInstance inst)
+        if (_suppressSelection) return;
+        if (InstanceBox.SelectedItem is string url)
         {
-            App.Hub.Instances.SetCurrent(inst.Id);
-            _ = RefreshAll();
+            var inst = App.Hub.Instances.All.FirstOrDefault(i => i.BaseUrl == url);
+            if (inst is not null) App.Hub.Instances.SetCurrent(inst.Id);
+            RefreshUI();
         }
     }
 
-    private async Task RefreshAll()
+    private void AutoPull_Toggled(object sender, RoutedEventArgs e)
     {
-        var inst = App.Hub.Instances.Current;
-        if (inst is null || string.IsNullOrEmpty(inst.ApiKey)) return;
-        await App.Hub.Rules.RefreshAsync(inst);
-        RefreshRulesUI();
-        await Artifacts.LoadAsync(inst, "");
+        App.Hub.Pull.Paused = !AutoPullSwitch.IsOn;
     }
 
-    private void RefreshRulesUI()
-    {
-        Rules.Clear();
-        foreach (var r in App.Hub.Rules.Rules)
-        {
-            var vm = new PullRuleVM(r);
-            if (App.Hub.Rules.ActiveRule?.RuleId == r.RuleId)
-            {
-                vm.Progress = App.Hub.Rules.ProgressPct;
-                vm.StatusText = App.Hub.Rules.Status;
-            }
-            Rules.Add(vm);
-        }
-        NoRulesText.Visibility = Rules.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        var active = App.Hub.Rules.ActiveRule;
-        ProgressRow.Visibility = active is null ? Visibility.Collapsed : Visibility.Visible;
-        TotalProgress.Value = App.Hub.Rules.ProgressPct;
-        ProgressText.Text = App.Hub.Rules.ActiveFile;
-    }
-
-    private async void Refresh_Click(object sender, RoutedEventArgs e) => await RefreshAll();
-
-    private async void Connect_Click(object sender, RoutedEventArgs e)
+    private void Connect_Click(object sender, RoutedEventArgs e)
     {
         var dlg = new ConnectDialog();
-        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);
-        WinRT.Interop.InitializeWithWindow.Initialize(dlg, hwnd);
-        await dlg.ShowAsync();
-        await RefreshAll();
+        _ = dlg.ShowAsync();
     }
 
     private async void NewRule_Click(object sender, RoutedEventArgs e)
     {
         var inst = App.Hub.Instances.Current;
         if (inst is null) return;
-        var dlg = new RuleEditDialog(new PullRule
+        var rule = new PullRule { Name = "", Source = "", LocalPath = "", Method = "copy", Content = "images", Subdirs = true, Trigger = "watch", Enabled = true };
+        var dlg = new RuleEditDialog(rule, true);
+        var result = await dlg.ShowAsync();
+        if (result == ContentDialogResult.Primary)
         {
-            Name = "新规则",
-            Method = "copy",
-            RemotePath = "",
-            LocalPath = "",
-            Filters = RuleEngine.DefaultFilters.ToList(),
-            Trigger = "watch",
-            IntervalSec = 300,
-            Enabled = true,
-            ClientId = inst.ClientId,
-        }, isNew: true);
-        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);
-        WinRT.Interop.InitializeWithWindow.Initialize(dlg, hwnd);
-        if (await dlg.ShowAsync() == ContentDialogResult.Primary)
-        {
-            await App.Hub.Rules.SaveRuleAsync(inst, dlg.Rule);
-            await RefreshAll();
+            App.Hub.Rules.SaveRule(inst, rule);
         }
     }
 
     private async void EditRule_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not Button b || b.Tag is not string id) return;
-        var rule = App.Hub.Rules.Rules.FirstOrDefault(r => r.RuleId == id);
+        if (sender is not Button btn || btn.Tag is not string ruleId) return;
+        var inst = App.Hub.Instances.Current;
+        if (inst is null) return;
+        var rule = App.Hub.Rules.Rules.FirstOrDefault(r => r.RuleId == ruleId);
         if (rule is null) return;
-        var dlg = new RuleEditDialog(rule, isNew: false);
-        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);
-        WinRT.Interop.InitializeWithWindow.Initialize(dlg, hwnd);
-        if (await dlg.ShowAsync() == ContentDialogResult.Primary)
+        var dlg = new RuleEditDialog(rule, false);
+        var result = await dlg.ShowAsync();
+        if (result == ContentDialogResult.Primary)
         {
-            var inst = App.Hub.Instances.Current!;
-            await App.Hub.Rules.SaveRuleAsync(inst, dlg.Rule);
-            await RefreshAll();
+            App.Hub.Rules.SaveRule(inst, rule);
         }
     }
 
     private async void RunOnce_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not Button b || b.Tag is not string id) return;
+        if (sender is not Button btn || btn.Tag is not string ruleId) return;
         var inst = App.Hub.Instances.Current;
-        var rule = App.Hub.Rules.Rules.FirstOrDefault(r => r.RuleId == id);
-        if (inst is null || rule is null) return;
+        if (inst is null) return;
+        var rule = App.Hub.Rules.Rules.FirstOrDefault(r => r.RuleId == ruleId);
+        if (rule is null) return;
         if (rule.Method == "move")
         {
-            var cd = new ContentDialog
+            var confirm = new ContentDialog
             {
-                Title = "确认 move",
+                Title = L.T("pull.rule.method.move"),
                 Content = L.T("pull.rule.move.confirm"),
                 PrimaryButtonText = L.T("common.ok"),
                 CloseButtonText = L.T("common.cancel"),
                 XamlRoot = this.XamlRoot,
             };
-            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);
-            WinRT.Interop.InitializeWithWindow.Initialize(cd, hwnd);
-            if (await cd.ShowAsync() != ContentDialogResult.Primary) return;
+            var r = await confirm.ShowAsync();
+            if (r != ContentDialogResult.Primary) return;
         }
         _ = App.Hub.Pull.RunOnceAsync(inst, rule);
     }
 
-    private async void OpenFolder_Click(object sender, RoutedEventArgs e)
+    private void OpenFolder_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not Button b || b.Tag is not string path || string.IsNullOrEmpty(path)) return;
-        try
-        {
-            if (!System.IO.Directory.Exists(path)) System.IO.Directory.CreateDirectory(path);
-            await Windows.System.Launcher.LaunchFolderPathAsync(path);
-        }
-        catch { /* ignore */ }
+        if (sender is not Button btn || btn.Tag is not string path) return;
+        if (!string.IsNullOrEmpty(path) && System.IO.Directory.Exists(path))
+            _ = Windows.System.Launcher.LaunchFolderPathAsync(path);
     }
 
-    private void Rule_Click(object sender, ItemClickEventArgs e)
+    private void DeleteRule_Click(object sender, RoutedEventArgs e)
     {
-        // 占位：点击规则项展开详情（二期）
+        if (sender is not Button btn || btn.Tag is not string ruleId) return;
+        var inst = App.Hub.Instances.Current;
+        if (inst is null) return;
+        App.Hub.Rules.DeleteRule(inst, ruleId);
+    }
+
+    private void RuleEnabled_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (sender is not ToggleSwitch ts || ts.Tag is not string ruleId) return;
+        var inst = App.Hub.Instances.Current;
+        if (inst is null) return;
+        var rule = App.Hub.RuleStore.RulesFor(inst.InstanceLabel).FirstOrDefault(r => r.RuleId == ruleId);
+        if (rule is not null)
+        {
+            rule.Enabled = ts.IsOn;
+            App.Hub.RuleStore.Upsert(inst.InstanceLabel, rule);
+        }
     }
 }
 
 public sealed class PullRuleVM
 {
-    public string RuleId { get; set; } = "";
-    public string Name { get; set; } = "";
-    public string Summary { get; set; } = "";
-    public string StatusText { get; set; } = "idle";
-    public int Progress { get; set; }
-    public string LocalPath { get; set; } = "";
+    private readonly PullRule _r;
+    private readonly LocalizationService _l;
 
-    public PullRuleVM(PullRule r)
+    public PullRuleVM(PullRule r, LocalizationService l) { _r = r; _l = l; }
+
+    public string RuleId => _r.RuleId;
+    public string Name => string.IsNullOrEmpty(_r.Name) ? "(unnamed)" : _r.Name;
+    public string LocalPath => _r.LocalPath;
+    public bool Enabled { get => _r.Enabled; set => _r.Enabled = value; }
+
+    public string MethodLabel => _r.Method == "move" ? _l.T("pull.rule.method.move") : _l.T("pull.rule.method.copy");
+    public string TriggerLabel => _r.Trigger == "manual" ? _l.T("pull.rule.trigger.manual") : _l.T("pull.rule.trigger.auto");
+
+    public string PathSummary
     {
-        RuleId = r.RuleId;
-        Name = string.IsNullOrEmpty(r.Name) ? "(未命名)" : r.Name;
-        var filters = r.Filters.Count > 0 ? string.Join(" ", r.Filters) : "*";
-        Summary = $"{r.Method} · {r.RemotePath} → {r.LocalPath} · [{filters}] · {r.Trigger}/{r.IntervalSec}s";
-        StatusText = r.StatusText;
-        Progress = r.ProgressPct;
-        LocalPath = r.LocalPath;
+        get
+        {
+            var src = string.IsNullOrEmpty(_r.Source) ? "output" : $"output/{_r.Source}";
+            var content = _r.Content switch { "images" => _l.T("pull.rule.content.images"), "videos" => _l.T("pull.rule.content.videos"), _ => _l.T("pull.rule.content.all") };
+            var sub = _r.Subdirs ? " · " + _l.T("pull.rule.subdirs") : "";
+            return $"{src} → {_r.LocalPath} · {content}{sub}";
+        }
+    }
+
+    public Visibility ProgressVisible => _r.StatusText == "syncing" ? Visibility.Visible : Visibility.Collapsed;
+    public int Progress => _r.ProgressPct;
+    public string ProgressLabel => $"{_r.ProgressPct}%";
+
+    public string LastRunText
+    {
+        get
+        {
+            if (!_r.Enabled) return _l.T("pull.rule.disabled");
+            if (_r.LastRunAt is null) return _l.T("pull.rule.neverRun");
+            return $"{_l.T("pull.rule.lastRun")} {_r.LastRunAt:HH:mm} · {_r.LastResult}";
+        }
     }
 }

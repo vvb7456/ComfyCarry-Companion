@@ -14,6 +14,7 @@ public sealed class ServiceHub : IDisposable
     public SettingsService Settings { get; }
     public RcloneService Rclone { get; }
     public CompanionApiClient Api { get; }
+    public RuleStore RuleStore { get; }
     public RuleEngine Rules { get; }
     public HeartbeatService Heartbeat { get; }
     public JobReporter Jobs { get; }
@@ -33,9 +34,10 @@ public sealed class ServiceHub : IDisposable
         Rclone = new RcloneService(Paths);
         Api = new CompanionApiClient(Instances);
         Jobs = new JobReporter(Api);
-        Rules = new RuleEngine(Api, Jobs);
-        Heartbeat = new HeartbeatService(Api, Instances, Rules, Settings);
-        Pull = new PullEngine(Rclone, Rules, Jobs, Instances, Paths, Settings, _appCts.Token);
+        RuleStore = new RuleStore(Paths);
+        Rules = new RuleEngine(RuleStore, Instances, Jobs);
+        Heartbeat = new HeartbeatService(Api, Instances, Rules, RuleStore, Settings);
+        Pull = new PullEngine(Rclone, Rules, RuleStore, Jobs, Instances, Paths, Settings, _appCts.Token);
     }
 
     public void Start()
@@ -44,6 +46,7 @@ public sealed class ServiceHub : IDisposable
         {
             Paths.EnsureCreated();
             Instances.Load();
+            RuleStore.Load();
             Settings.Load();
             Heartbeat.Start();
             Pull.Start();

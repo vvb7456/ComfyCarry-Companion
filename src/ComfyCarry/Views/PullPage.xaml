@@ -1,81 +1,113 @@
-<Page
-    x:Class="ComfyCarry.Views.PullPage"
-    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:ComfyCarry.Views"
-    NavigationCacheMode="Required">
+<Page x:Class="ComfyCarry.Views.PullPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:local="using:ComfyCarry.Views"
+      NavigationCacheMode="Required">
     <Grid>
-        <!-- 空状态：无实例时的引导 -->
+        <!-- 空状态 -->
         <StackPanel x:Name="EmptyState" Visibility="Collapsed"
-                    HorizontalAlignment="Center" VerticalAlignment="Center"
-                    Spacing="16" MaxWidth="480">
+                    HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16" MaxWidth="480">
             <FontIcon Glyph="&#xE896;" FontSize="48" Opacity="0.4" HorizontalAlignment="Center"/>
-            <TextBlock x:Name="EmptyTitle" Text="连接你的 ComfyUI 面板"
-                       Style="{ThemeResource SubtitleTextBlockStyle}" HorizontalAlignment="Center"/>
-            <TextBlock x:Name="EmptyDesc" TextWrapping="Wrap" HorizontalAlignment="Center"
-                       Opacity="0.7" TextAlignment="Center"
-                       Text="输入面板地址和密码，即可浏览产物并自动拉取到本机。"/>
+            <TextBlock x:Name="EmptyTitle" Style="{ThemeResource SubtitleTextBlockStyle}" HorizontalAlignment="Center"/>
+            <TextBlock x:Name="EmptyDesc" TextWrapping="Wrap" HorizontalAlignment="Center" Opacity="0.7" TextAlignment="Center"/>
             <Button x:Name="EmptyConnectBtn" Click="Connect_Click" HorizontalAlignment="Center"
-                    Style="{ThemeResource AccentButtonStyle}" Padding="24,10"
-                    Content="连接面板实例"/>
+                    Style="{ThemeResource AccentButtonStyle}" Padding="24,10"/>
         </StackPanel>
 
-        <!-- 主内容：有实例时显示 -->
-        <Grid x:Name="MainContent" RowDefinitions="Auto,Auto,*,Auto">
-            <!-- 顶部：实例切换 + 连接 -->
-            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Padding="36,16,36,8">
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <ComboBox x:Name="InstanceBox" Header="实例" Width="280" SelectionChanged="Instance_SelectionChanged"/>
-                    <Button x:Name="ConnectBtn" Click="Connect_Click" Content="添加实例" VerticalAlignment="Bottom"/>
+        <!-- 主内容 -->
+        <ScrollViewer x:Name="MainContent" Padding="40,32,40,16" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+            <StackPanel MaxWidth="720" Spacing="20">
+                <!-- 标题 -->
+                <StackPanel Spacing="4">
+                    <TextBlock x:Name="TitleText" Style="{ThemeResource SubtitleTextBlockStyle}"/>
+                    <TextBlock x:Name="SubtitleText" Opacity="0.7"/>
                 </StackPanel>
-                <Button x:Name="RefreshBtn" Grid.Column="1" Click="Refresh_Click" Content="刷新" VerticalAlignment="Bottom"/>
-            </Grid>
 
-            <!-- 介绍 + 总进度 -->
-            <StackPanel Grid.Row="1" Padding="36,0,36,12" Spacing="6">
-                <TextBlock x:Name="IntroText" TextWrapping="Wrap" Opacity="0.8"
-                           Text="把实例产物额外拉一份到本机，与你在面板配置的网盘同步互不影响、可并存。"/>
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" x:Name="ProgressRow" Visibility="Collapsed">
-                    <ProgressBar x:Name="TotalProgress" Value="0" Maximum="100"/>
-                    <TextBlock x:Name="ProgressText" Grid.Column="1" VerticalAlignment="Center"/>
+                <!-- 连接条 -->
+                <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="12" VerticalAlignment="Center">
+                    <ComboBox x:Name="InstanceBox" Width="220" SelectionChanged="Instance_SelectionChanged"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <Ellipse x:Name="StatusDot" Width="8" Height="8" Fill="Gray"/>
+                        <TextBlock x:Name="StatusText" VerticalAlignment="Center" FontSize="12"/>
+                    </StackPanel>
+                    <TextBlock x:Name="DavHostText" Grid.Column="2" VerticalAlignment="Center" Opacity="0.5" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                    <Button x:Name="AddInstanceBtn" Grid.Column="3" Click="Connect_Click" Padding="12,6"/>
                 </Grid>
-            </StackPanel>
 
-            <!-- 规则列表 -->
-            <ScrollViewer Grid.Row="2" Padding="36,0,36,12" VerticalScrollBarVisibility="Auto">
-                <StackPanel Spacing="8">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                        <TextBlock x:Name="RulesHeader" Text="拉取规则" Style="{ThemeResource BodyStrongTextBlockStyle}" VerticalAlignment="Center"/>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                            <Button x:Name="NewRuleBtn" Click="NewRule_Click" Content="新建规则"/>
-                        </StackPanel>
+                <!-- 自动取回条 -->
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                    <ToggleSwitch x:Name="AutoPullSwitch" Toggled="AutoPull_Toggled"/>
+                    <TextBlock x:Name="AutoPullDesc" Grid.Column="1" VerticalAlignment="Center" Opacity="0.6" FontSize="12"/>
+                    <TextBlock x:Name="PullStatusText" Grid.Column="2" VerticalAlignment="Center" FontSize="12"/>
+                </Grid>
+
+                <!-- 规则区 -->
+                <StackPanel Spacing="12">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock x:Name="RulesHeader" Style="{ThemeResource BodyStrongTextBlockStyle}" VerticalAlignment="Center"/>
+                        <Button x:Name="NewRuleBtn" Grid.Column="1" Click="NewRule_Click" Style="{ThemeResource AccentButtonStyle}" Padding="16,6">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon Glyph="&#xE710;" FontSize="12"/>
+                                <TextBlock x:Name="NewRuleLabel"/>
+                            </StackPanel>
+                        </Button>
                     </Grid>
-                    <TextBlock x:Name="NoRulesText" Visibility="Collapsed" Opacity="0.6"
-                               Text="暂无规则，点击「新建规则」添加一条拉取规则。"/>
-                    <ListView x:Name="RulesList" IsItemClickEnabled="True" ItemClick="Rule_Click">
+
+                    <TextBlock x:Name="NoRulesText" Visibility="Collapsed" Opacity="0.6" TextWrapping="Wrap"/>
+
+                    <ListView x:Name="RulesList" SelectionMode="None" IsItemClickEnabled="False">
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="Margin" Value="0,0,0,8"/>
+                            </Style>
+                        </ListView.ItemContainerStyle>
                         <ListView.ItemTemplate>
                             <DataTemplate x:DataType="local:PullRuleVM">
-                                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" Padding="8" RowSpacing="2">
-                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{x:Bind Name}" FontWeight="SemiBold"/>
-                                    <TextBlock Grid.Row="1" Grid.Column="0" Opacity="0.7" Text="{x:Bind Summary}" FontSize="12"/>
-                                    <ProgressBar Grid.Row="2" Grid.Column="0" Value="{x:Bind Progress}" Maximum="100" Width="320" HorizontalAlignment="Left"/>
-                                    <StackPanel Grid.RowSpan="3" Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                                        <TextBlock Text="{x:Bind StatusText}" VerticalAlignment="Center" Opacity="0.7" FontSize="12"/>
-                                        <Button Content="立即拉取" Tag="{x:Bind RuleId}" Click="RunOnce_Click" Padding="8,4"/>
-                                        <Button Content="编辑" Tag="{x:Bind RuleId}" Click="EditRule_Click" Padding="8,4"/>
-                                        <Button Content="打开文件夹" Tag="{x:Bind LocalPath}" Click="OpenFolder_Click" Padding="8,4"/>
+                                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                        BorderThickness="1" CornerRadius="8" Padding="16">
+                                    <StackPanel Spacing="8">
+                                        <!-- 第一行：名称 + chips + 启用 -->
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                <Border Background="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                                                    <TextBlock Text="{x:Bind MethodLabel}" FontSize="11" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+                                                </Border>
+                                                <Border Background="{ThemeResource ControlFillColorDefaultBrush}" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                                                    <TextBlock Text="{x:Bind TriggerLabel}" FontSize="11"/>
+                                                </Border>
+                                            </StackPanel>
+                                            <ToggleSwitch Grid.Column="1" IsOn="{x:Bind Enabled, Mode=TwoWay}"
+                                                          OnContent="" OffContent="" MinWidth="44"
+                                                          Toggled="RuleEnabled_Toggled" Tag="{x:Bind RuleId}"/>
+                                        </Grid>
+                                        <!-- 第二行：路径 -->
+                                        <TextBlock Text="{x:Bind PathSummary}" Opacity="0.7" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                        <!-- 第三行：进度（活跃时） -->
+                                        <Grid Visibility="{x:Bind ProgressVisible}" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                            <ProgressBar Value="{x:Bind Progress}" Maximum="100"/>
+                                            <TextBlock Grid.Column="1" Text="{x:Bind ProgressLabel}" FontSize="11" VerticalAlignment="Center"/>
+                                        </Grid>
+                                        <!-- 第四行：上次结果 + 操作 -->
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <TextBlock Text="{x:Bind LastRunText}" Opacity="0.5" FontSize="11" VerticalAlignment="Center"/>
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                                                <Button Content="拉取" Tag="{x:Bind RuleId}" Click="RunOnce_Click" Padding="10,4" FontSize="12"/>
+                                                <Button Content="编辑" Tag="{x:Bind RuleId}" Click="EditRule_Click" Padding="10,4" FontSize="12"/>
+                                                <Button Content="打开" Tag="{x:Bind LocalPath}" Click="OpenFolder_Click" Padding="10,4" FontSize="12"/>
+                                                <Button Content="删除" Tag="{x:Bind RuleId}" Click="DeleteRule_Click" Padding="10,4" FontSize="12"/>
+                                            </StackPanel>
+                                        </Grid>
                                     </StackPanel>
-                                </Grid>
+                                </Border>
                             </DataTemplate>
                         </ListView.ItemTemplate>
                     </ListView>
                 </StackPanel>
-            </ScrollViewer>
-
-            <!-- 产物列表 -->
-            <Expander Grid.Row="3" Header="产物列表（WebDAV）" HorizontalAlignment="Stretch" ExpandDirection="Up" IsExpanded="False">
-                <local:ArtifactListView x:Name="Artifacts"/>
-            </Expander>
-        </Grid>
+            </StackPanel>
+        </ScrollViewer>
     </Grid>
 </Page>

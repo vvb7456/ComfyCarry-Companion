@@ -5,21 +5,19 @@ using Microsoft.UI.Dispatching;
 namespace ComfyCarry.Services;
 
 /// <summary>
-/// 规则的本地缓存 + 与面板同步（面板为真源，SPEC §2.3）。
-/// UI 绑定 Rules 集合；集合修改在 UI 线程进行。
+/// 规则的本地状态管理（规则归客户端所有，本地持久化）。
 /// </summary>
 public sealed class RuleEngine
 {
-    private readonly CompanionApiClient _api;
+    private readonly RuleStore _store;
+    private readonly InstanceStore _instances;
     private readonly JobReporter _jobs;
     private readonly object _lock = new();
-    private Microsoft.UI.Dispatching.DispatcherQueue? _uiQueue;
+    private DispatcherQueue? _uiQueue;
 
     public ObservableCollection<PullRule> Rules { get; } = new();
-    public ObservableCollection<PullRule> Templates { get; } = new();
 
     public PullRule? ActiveRule { get; private set; }
-
     public string Status { get; private set; } = "idle";
     public int ProgressPct { get; private set; }
     public string ActiveFile { get; private set; } = "";
@@ -27,14 +25,14 @@ public sealed class RuleEngine
 
     public event Action? StateChanged;
 
-    public RuleEngine(CompanionApiClient api, JobReporter jobs)
+    public RuleEngine(RuleStore store, InstanceStore instances, JobReporter jobs)
     {
-        _api = api;
+        _store = store;
+        _instances = instances;
         _jobs = jobs;
     }
 
-    /// <summary>在 UI 线程被激活后注入 DispatcherQueue，确保集合修改在 UI 线程。</summary>
-    public void AttachUi(Microsoft.UI.Dispatching.DispatcherQueue queue) => _uiQueue = queue;
+    public void AttachUi(DispatcherQueue queue) => _uiQueue = queue;
 
     private void Ui(Action a)
     {
@@ -42,63 +40,34 @@ public sealed class RuleEngine
         else a();
     }
 
-    public async Task RefreshAsync(PanelInstance inst, CancellationToken ct = default)
+    /// <summary>从本地 RuleStore 刷新规则列表（无网络）。</summary>
+    public void Refresh(PanelInstance inst)
     {
-        var resp = await _api.GetRulesAsync(inst, ct);
-        var rules = resp.Rules;
-        var templates = resp.Templates;
+        var label = inst.InstanceLabel;
+        var rules = _store.RulesFor(label);
         Ui(() =>
         {
             lock (_lock)
             {
                 Rules.Clear();
                 foreach (var r in rules) Rules.Add(r);
-                Templates.Clear();
-                foreach (var t in templates) Templates.Add(t);
             }
             StateChanged?.Invoke();
         });
     }
 
-    public async Task<bool> SaveRuleAsync(PanelInstance inst, PullRule rule, CancellationToken ct = default)
+    /// <summary>保存规则到本地（无网络）。</summary>
+    public void SaveRule(PanelInstance inst, PullRule rule)
     {
-        rule.ClientId = inst.ClientId;
-        rule.Executor = "companion";
-        rule.Direction = "pull";
-        var saved = await _api.SaveRuleAsync(inst, rule, ct);
-        if (saved is not null)
-        {
-            Ui(() =>
-            {
-                lock (_lock)
-                {
-                    var idx = Rules.ToList().FindIndex(r => r.RuleId == saved.RuleId);
-                    if (idx >= 0) Rules[idx] = saved;
-                    else Rules.Add(saved);
-                }
-                StateChanged?.Invoke();
-            });
-            return true;
-        }
-        return false;
+        _store.Upsert(inst.InstanceLabel, rule);
+        Refresh(inst);
     }
 
-    public async Task<bool> DeleteRuleAsync(PanelInstance inst, string ruleId, CancellationToken ct = default)
+    /// <summary>删除规则（本地）。</summary>
+    public void DeleteRule(PanelInstance inst, string ruleId)
     {
-        var ok = await _api.DeleteRuleAsync(inst, ruleId, ct);
-        if (ok)
-        {
-            Ui(() =>
-            {
-                lock (_lock)
-                {
-                    var toRemove = Rules.ToList().Where(r => r.RuleId == ruleId).ToList();
-                    foreach (var r in toRemove) Rules.Remove(r);
-                }
-                StateChanged?.Invoke();
-            });
-        }
-        return ok;
+        _store.Delete(inst.InstanceLabel, ruleId);
+        Refresh(inst);
     }
 
     public void SetActive(PullRule? rule)
@@ -144,29 +113,5 @@ public sealed class RuleEngine
             if (ActiveRule is not null) ActiveRule.StatusText = "error";
             StateChanged?.Invoke();
         });
-    }
-
-    /// <summary>默认产物扩展名集（SPEC §4.4）。</summary>
-    public static readonly string[] DefaultFilters =
-        { "png", "jpg", "jpeg", "webp", "gif", "bmp", "tiff", "tif", "mp4", "mov", "webm", "mkv", "avi" };
-
-    public static PullRule NewFromTemplate(PullRule tmpl, PanelInstance inst)
-    {
-        return new PullRule
-        {
-            RuleId = "",
-            ClientId = inst.ClientId,
-            Executor = "companion",
-            Direction = "pull",
-            Method = tmpl.Method,
-            RemotePath = tmpl.RemotePath,
-            LocalPath = "",
-            Filters = tmpl.Filters.Count > 0 ? tmpl.Filters.ToList() : DefaultFilters.ToList(),
-            Trigger = tmpl.Trigger,
-            IntervalSec = tmpl.IntervalSec,
-            Enabled = true,
-            Name = tmpl.Name + " (副本)",
-            TemplateId = tmpl.TemplateId,
-        };
     }
 }

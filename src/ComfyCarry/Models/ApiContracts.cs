@@ -2,9 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace ComfyCarry.Models;
 
-/// <summary>
-/// 面板返回的 connect 响应（SPEC §2.2）。
-/// </summary>
+/// <summary>面板 connect 响应。</summary>
 public sealed class ConnectResponse
 {
     [JsonPropertyName("ok")]
@@ -29,24 +27,7 @@ public sealed class ConnectResponse
     public string? Error { get; set; }
 }
 
-/// <summary>
-/// 规则 CRUD 接口的列表/模板响应。
-/// </summary>
-public sealed class RulesResponse
-{
-    [JsonPropertyName("rules")]
-    public List<PullRule> Rules { get; set; } = new();
-
-    [JsonPropertyName("templates")]
-    public List<PullRule> Templates { get; set; } = new();
-
-    [JsonPropertyName("error")]
-    public string? Error { get; set; }
-}
-
-/// <summary>
-/// 心跳请求（SPEC §2.4）。
-/// </summary>
+/// <summary>心跳请求。</summary>
 public sealed class HeartbeatRequest
 {
     [JsonPropertyName("client_id")]
@@ -66,6 +47,9 @@ public sealed class HeartbeatRequest
 
     [JsonPropertyName("progress")]
     public HeartbeatProgress? Progress { get; set; }
+
+    [JsonPropertyName("rule_summaries")]
+    public List<RuleSummary> RuleSummaries { get; set; } = new();
 }
 
 public sealed class HeartbeatProgress
@@ -80,9 +64,29 @@ public sealed class HeartbeatProgress
     public long Speed { get; set; }
 }
 
-/// <summary>
-/// Job 创建/事件/收尾请求（SPEC §2.5）。
-/// </summary>
+/// <summary>心跳中的规则摘要（只读，面板 Clients tab 展示用）。</summary>
+public sealed class RuleSummary
+{
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+
+    [JsonPropertyName("source")]
+    public string Source { get; set; } = "";
+
+    [JsonPropertyName("local_path")]
+    public string LocalPath { get; set; } = "";
+
+    [JsonPropertyName("method")]
+    public string Method { get; set; } = "";
+
+    [JsonPropertyName("trigger")]
+    public string Trigger { get; set; } = "";
+
+    [JsonPropertyName("last_result")]
+    public string LastResult { get; set; } = "";
+}
+
+/// <summary>Job 创建请求。</summary>
 public sealed class JobCreateRequest
 {
     [JsonPropertyName("rule_id")]
@@ -91,8 +95,8 @@ public sealed class JobCreateRequest
     [JsonPropertyName("client_id")]
     public string ClientId { get; set; } = "";
 
-    [JsonPropertyName("trigger_type")]
-    public string TriggerType { get; set; } = "companion";
+    [JsonPropertyName("rule_count")]
+    public int RuleCount { get; set; } = 1;
 }
 
 public sealed class JobCreateResponse
@@ -104,35 +108,37 @@ public sealed class JobCreateResponse
     public string? Error { get; set; }
 }
 
+/// <summary>Job 事件请求。</summary>
 public sealed class JobEventRequest
 {
-    [JsonPropertyName("type")]
-    public string Type { get; set; } = "";   // rule_start/file_transferred/rule_done
+    [JsonPropertyName("key")]
+    public string Key { get; set; } = "";
+
+    [JsonPropertyName("rule_id")]
+    public string? RuleId { get; set; }
 
     [JsonPropertyName("level")]
-    public string? Level { get; set; }       // info/warning/error（log 类事件）
+    public string? Level { get; set; }
 
-    [JsonPropertyName("file")]
-    public string? File { get; set; }
-
-    [JsonPropertyName("pct")]
-    public int? Pct { get; set; }
-
-    [JsonPropertyName("speed")]
-    public long? Speed { get; set; }
-
-    [JsonPropertyName("message")]
-    public string? Message { get; set; }
+    [JsonPropertyName("params")]
+    public Dictionary<string, object>? Params { get; set; }
 }
 
+/// <summary>Job 结束请求。</summary>
 public sealed class JobFinishRequest
 {
     [JsonPropertyName("status")]
-    public string Status { get; set; } = "ok";   // ok|error|partial
+    public string Status { get; set; } = "success";   // success|failed|partial|cancelled
 
-    [JsonPropertyName("stats")]
-    public Dictionary<string, object> Stats { get; set; } = new();
+    [JsonPropertyName("success_count")]
+    public int SuccessCount { get; set; }
 
-    [JsonPropertyName("message")]
-    public string? Message { get; set; }
+    [JsonPropertyName("failure_count")]
+    public int FailureCount { get; set; }
+
+    [JsonPropertyName("files_synced")]
+    public int FilesSynced { get; set; }
+
+    [JsonPropertyName("summary")]
+    public string? Summary { get; set; }
 }

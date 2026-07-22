@@ -49,33 +49,6 @@ public sealed class CompanionApiClient : IDisposable
         return cr;
     }
 
-    public async Task<RulesResponse> GetRulesAsync(PanelInstance inst, CancellationToken ct = default)
-    {
-        var url = $"{NormalizeUrl(inst.BaseUrl)}/api/companion/rules?client_id={Uri.EscapeDataString(inst.ClientId)}";
-        using var resp = await SendWithAuthAsync(inst, HttpMethod.Get, url, null, ct);
-        var text = await resp.Content.ReadAsStringAsync(ct);
-        return JsonSerializer.Deserialize<RulesResponse>(text, JsonOpts) ?? new RulesResponse { Error = $"HTTP {resp.StatusCode}" };
-    }
-
-    public async Task<PullRule?> SaveRuleAsync(PanelInstance inst, PullRule rule, CancellationToken ct = default)
-    {
-        var url = $"{NormalizeUrl(inst.BaseUrl)}/api/companion/rules";
-        var body = JsonSerializer.Serialize(rule, JsonOpts);
-        using var resp = await SendWithAuthAsync(inst, HttpMethod.Post, url, body, ct);
-        var text = await resp.Content.ReadAsStringAsync(ct);
-        if (!resp.IsSuccessStatusCode) return null;
-        // 面板可能返回 {rule_id, ...} 或整条规则
-        try { return JsonSerializer.Deserialize<PullRule>(text, JsonOpts); }
-        catch { return rule; }
-    }
-
-    public async Task<bool> DeleteRuleAsync(PanelInstance inst, string ruleId, CancellationToken ct = default)
-    {
-        var url = $"{NormalizeUrl(inst.BaseUrl)}/api/companion/rules/{Uri.EscapeDataString(ruleId)}";
-        using var resp = await SendWithAuthAsync(inst, HttpMethod.Delete, url, null, ct);
-        return resp.IsSuccessStatusCode;
-    }
-
     public async Task<bool> SendHeartbeatAsync(PanelInstance inst, HeartbeatRequest hb, CancellationToken ct = default)
     {
         var url = $"{NormalizeUrl(inst.BaseUrl)}/api/companion/heartbeat";

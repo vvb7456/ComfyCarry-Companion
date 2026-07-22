@@ -438,11 +438,11 @@ public sealed class RcloneService
         CancellationToken ct = default)
     {
         var remoteName = InstanceRemoteName(inst);
-        var src = $"{remoteName}:{rule.RemotePath}";
+        var src = $"{remoteName}:{rule.Source}";
         var dst = rule.LocalPath;
         var args = new List<string>
         {
-            rule.Method.ToRclone(), src, dst,
+            rule.Method, src, dst,
             "--config", _paths.AppRcloneConf,
             "--multi-thread-cutoff", "32M",
             "--multi-thread-streams", "4",
@@ -456,17 +456,35 @@ public sealed class RcloneService
             "--retries", "3",
             "--low-level-retries", "5",
         };
-        foreach (var ext in rule.Filters)
-        {
-            var e = ext.TrimStart('.');
-            args.Add("--include");
-            args.Add($"*.{e}");
-        }
+        args.AddRange(BuildFilterArgs(rule));
         // 远端只读列举（WebDAV），不检查本地 mtime 差异以外的东西
         args.Add("--no-traverse");
 
         Directory.CreateDirectory(dst);
         return await RunStreamingAsync(args, null, onLog, ct);
+    }
+
+    private static List<string> BuildFilterArgs(PullRule rule)
+    {
+        var args = new List<string>();
+        switch (rule.Content)
+        {
+            case "images":
+                args.Add("--include");
+                args.Add("*.{png,jpg,jpeg,webp,gif,bmp,tiff,tif}");
+                break;
+            case "videos":
+                args.Add("--include");
+                args.Add("*.{mp4,mov,webm,mkv,avi}");
+                break;
+            // "all": 不加 include
+        }
+        if (!rule.Subdirs)
+        {
+            args.Add("--max-depth");
+            args.Add("1");
+        }
+        return args;
     }
 
     /// <summary>

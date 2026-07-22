@@ -11,6 +11,7 @@ public sealed class HeartbeatService
     private readonly CompanionApiClient _api;
     private readonly InstanceStore _instances;
     private readonly RuleEngine _rules;
+    private readonly RuleStore _ruleStore;
     private readonly SettingsService _settings;
     private Timer? _timer;
     private static readonly string Hostname = Environment.MachineName;
@@ -20,11 +21,12 @@ public sealed class HeartbeatService
 
     public string LastStatus { get; private set; } = "idle";
 
-    public HeartbeatService(CompanionApiClient api, InstanceStore instances, RuleEngine rules, SettingsService settings)
+    public HeartbeatService(CompanionApiClient api, InstanceStore instances, RuleEngine rules, RuleStore ruleStore, SettingsService settings)
     {
         _api = api;
         _instances = instances;
         _rules = rules;
+        _ruleStore = ruleStore;
         _settings = settings;
     }
 
@@ -62,6 +64,15 @@ public sealed class HeartbeatService
                     Pct = _rules.ProgressPct,
                     Speed = _rules.ActiveSpeed,
                 },
+                RuleSummaries = _ruleStore.RulesFor(inst.InstanceLabel).Select(r => new RuleSummary
+                {
+                    Name = r.Name,
+                    Source = r.Source,
+                    LocalPath = r.LocalPath,
+                    Method = r.Method,
+                    Trigger = r.Trigger,
+                    LastResult = r.LastResult,
+                }).ToList(),
             };
             await _api.SendHeartbeatAsync(inst, hb);
         }
