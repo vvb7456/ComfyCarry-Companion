@@ -52,7 +52,7 @@ public sealed partial class WizardNamePage : Page
             // best-effort：与已有 remote 重名校验
             try
             {
-                var conf = App.Hub.Paths.AppRcloneConf;
+                var conf = App.Hub.Paths.CloudRcloneConf;
                 if (File.Exists(conf))
                 {
                     foreach (var ln in File.ReadAllLines(conf))

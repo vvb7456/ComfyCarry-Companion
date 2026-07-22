@@ -64,10 +64,9 @@ public sealed class HeartbeatService
                     Pct = _rules.ProgressPct,
                     Speed = _rules.ActiveSpeed,
                 },
-                RuleSummaries = _ruleStore.RulesFor(inst.InstanceLabel).Select(r => new RuleSummary
+                RuleSummaries = _ruleStore.All.Select(r => new RuleSummary
                 {
                     Name = r.Name,
-                    Source = r.Source,
                     LocalPath = r.LocalPath,
                     Method = r.Method,
                     Trigger = r.Trigger,

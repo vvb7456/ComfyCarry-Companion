@@ -20,9 +20,6 @@ public sealed class ConnectResponse
     [JsonPropertyName("comfyui_dir")]
     public string ComfyuiDir { get; set; } = "/workspace/ComfyUI";
 
-    [JsonPropertyName("instance_label")]
-    public string InstanceLabel { get; set; } = "";
-
     [JsonPropertyName("error")]
     public string? Error { get; set; }
 }
@@ -69,9 +66,6 @@ public sealed class RuleSummary
 {
     [JsonPropertyName("name")]
     public string Name { get; set; } = "";
-
-    [JsonPropertyName("source")]
-    public string Source { get; set; } = "";
 
     [JsonPropertyName("local_path")]
     public string LocalPath { get; set; } = "";

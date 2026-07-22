@@ -22,6 +22,8 @@ public sealed class RuleEngine
     public int ProgressPct { get; private set; }
     public string ActiveFile { get; private set; } = "";
     public long ActiveSpeed { get; private set; }
+    public int FilesCompleted { get; private set; }
+    public string? LastError { get; private set; }
 
     public event Action? StateChanged;
 
@@ -41,13 +43,9 @@ public sealed class RuleEngine
     }
 
     /// <summary>从本地 RuleStore 刷新规则列表（无网络）。</summary>
-    /// <remarks>不触发 StateChanged：Refresh 是读操作，调用方（RefreshUI/SaveRule/DeleteRule）
-    /// 本身已由 RuleStore.Changed 或显式 SetActive/MarkIdle 等事件驱动 UI 刷新，
-    /// 在此处 fire StateChanged 会形成 RefreshUI -> Refresh -> StateChanged -> RefreshUI 无限循环。</remarks>
-    public void Refresh(PanelInstance inst)
+    public void Refresh()
     {
-        var label = inst.InstanceLabel;
-        var rules = _store.RulesFor(label);
+        var rules = _store.All;
         Ui(() =>
         {
             lock (_lock)
@@ -59,17 +57,17 @@ public sealed class RuleEngine
     }
 
     /// <summary>保存规则到本地（无网络）。</summary>
-    public void SaveRule(PanelInstance inst, PullRule rule)
+    public void SaveRule(PullRule rule)
     {
-        _store.Upsert(inst.InstanceLabel, rule);
-        Refresh(inst);
+        _store.Upsert(rule);
+        Refresh();
     }
 
     /// <summary>删除规则（本地）。</summary>
-    public void DeleteRule(PanelInstance inst, string ruleId)
+    public void DeleteRule(string ruleId)
     {
-        _store.Delete(inst.InstanceLabel, ruleId);
-        Refresh(inst);
+        _store.Delete(ruleId);
+        Refresh();
     }
 
     public void SetActive(PullRule? rule)
@@ -84,13 +82,14 @@ public sealed class RuleEngine
         });
     }
 
-    public void ReportProgress(string file, int pct, long speed)
+    public void ReportProgress(string file, int pct, long speed, int filesCompleted = 0)
     {
         Ui(() =>
         {
             ActiveFile = file;
             ProgressPct = pct;
             ActiveSpeed = speed;
+            FilesCompleted = filesCompleted;
             StateChanged?.Invoke();
         });
     }
@@ -101,6 +100,9 @@ public sealed class RuleEngine
         {
             Status = "idle";
             ProgressPct = 0;
+            ActiveFile = "";
+            ActiveSpeed = 0;
+            FilesCompleted = 0;
             if (ActiveRule is not null) ActiveRule.StatusText = "idle";
             ActiveRule = null;
             StateChanged?.Invoke();
@@ -112,6 +114,7 @@ public sealed class RuleEngine
         Ui(() =>
         {
             Status = "error";
+            LastError = msg;
             if (ActiveRule is not null) ActiveRule.StatusText = "error";
             StateChanged?.Invoke();
         });

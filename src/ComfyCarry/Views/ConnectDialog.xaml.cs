@@ -54,8 +54,7 @@ public sealed partial class ConnectDialog : ContentDialog
             inst.DavUrl = cr.DavUrl;
             inst.DavUser = cr.DavUser;
             inst.ComfyuiDir = cr.ComfyuiDir;
-            inst.InstanceLabel = cr.InstanceLabel;
-            inst.Label = string.IsNullOrEmpty(LabelBox.Text.Trim()) ? cr.InstanceLabel : LabelBox.Text.Trim();
+            inst.Label = string.IsNullOrEmpty(LabelBox.Text.Trim()) ? url : LabelBox.Text.Trim();
             inst.IsCurrent = true;
             App.Hub.Instances.EnsureClientId(inst);
             App.Hub.Instances.Upsert(inst);

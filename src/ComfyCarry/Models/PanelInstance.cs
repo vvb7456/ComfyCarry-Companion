@@ -15,7 +15,6 @@ public sealed class PanelInstance
     public string DavUrl { get; set; } = "";
     public string DavUser { get; set; } = "comfy";
     public string ComfyuiDir { get; set; } = "/workspace/ComfyUI";
-    public string InstanceLabel { get; set; } = "";
     public string EncPassword { get; set; } = "";     // DPAPI
     public string EncApiKey { get; set; } = "";       // DPAPI
     public bool IsCurrent { get; set; }

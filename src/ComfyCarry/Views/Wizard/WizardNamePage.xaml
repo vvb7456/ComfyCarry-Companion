@@ -5,12 +5,12 @@
     <Grid RowDefinitions="*,Auto">
         <!-- 内容区：可滚动 -->
         <ScrollViewer Grid.Row="0" Padding="40,32,40,16" VerticalScrollBarVisibility="Auto">
-            <StackPanel MaxWidth="640" HorizontalAlignment="Center" Spacing="16">
+            <StackPanel HorizontalAlignment="Stretch" Spacing="16">
                 <TextBlock x:Name="Lbl" Style="{ThemeResource SubtitleTextBlockStyle}"/>
                 <TextBox x:Name="NameBox" Header="Remote 名称"
-                         Width="360" HorizontalAlignment="Left"
+                         HorizontalAlignment="Stretch"
                          TextChanged="Name_TextChanged"/>
-                <TextBlock x:Name="NameErr" Foreground="{ThemeResource SystemFillColorCriticalBrush}" Visibility="Collapsed" TextWrapping="Wrap" MaxWidth="360"/>
+                <TextBlock x:Name="NameErr" Foreground="{ThemeResource SystemFillColorCriticalBrush}" Visibility="Collapsed" TextWrapping="Wrap"/>
             </StackPanel>
         </ScrollViewer>
 

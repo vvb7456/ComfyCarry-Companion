@@ -44,7 +44,7 @@ public sealed partial class CloudHomePage : Page
         var names = new List<string>();
         try
         {
-            var conf = App.Hub.Paths.AppRcloneConf;
+            var conf = App.Hub.Paths.CloudRcloneConf;
             if (File.Exists(conf))
             {
                 foreach (var ln in File.ReadAllLines(conf))
@@ -81,7 +81,7 @@ public sealed partial class CloudHomePage : Page
     {
         try
         {
-            var conf = App.Hub.Paths.AppRcloneConf;
+            var conf = App.Hub.Paths.CloudRcloneConf;
             if (!File.Exists(conf)) return null;
             var lines = File.ReadAllLines(conf);
             string? type = null;
@@ -132,7 +132,7 @@ public sealed partial class CloudHomePage : Page
         if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
         try
         {
-            var conf = App.Hub.Paths.AppRcloneConf;
+            var conf = App.Hub.Paths.CloudRcloneConf;
             if (!File.Exists(conf)) return;
             var lines = File.ReadAllLines(conf).ToList();
             var result = new List<string>();
@@ -166,7 +166,7 @@ public sealed partial class CloudHomePage : Page
     {
         try
         {
-            var conf = App.Hub.Paths.AppRcloneConf;
+            var conf = App.Hub.Paths.CloudRcloneConf;
             if (!File.Exists(conf)) return;
             var picker = new FileSavePicker();
             var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);

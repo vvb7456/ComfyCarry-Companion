@@ -25,17 +25,17 @@
             IsSettingsVisible="False"
             SelectionChanged="Nav_SelectionChanged">
             <NavigationView.MenuItems>
+                <NavigationViewItem Tag="pull">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE896;"/>
+                    </NavigationViewItem.Icon>
+                    <TextBlock x:Name="NavPullLabel" Text="同步"/>
+                </NavigationViewItem>
                 <NavigationViewItem Tag="cloud">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE753;"/>
                     </NavigationViewItem.Icon>
                     <TextBlock x:Name="NavCloudLabel" Text="云存储配置"/>
-                </NavigationViewItem>
-                <NavigationViewItem Tag="pull">
-                    <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE896;"/>
-                    </NavigationViewItem.Icon>
-                    <TextBlock x:Name="NavPullLabel" Text="产物取回"/>
                 </NavigationViewItem>
                 <NavigationViewItem Tag="settings">
                     <NavigationViewItem.Icon>

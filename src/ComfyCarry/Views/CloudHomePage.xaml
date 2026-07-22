@@ -5,12 +5,13 @@
     xmlns:local="using:ComfyCarry.Views"
     NavigationCacheMode="Required">
     <Grid Padding="40,32,40,16">
-        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16">
+        <StackPanel HorizontalAlignment="Stretch" VerticalAlignment="Top" Spacing="16">
             <TextBlock x:Name="TitleText" Style="{ThemeResource SubtitleTextBlockStyle}"/>
             <InfoBar x:Name="RcloneMissingBar" Severity="Warning" IsOpen="False"/>
 
             <!-- 固定大小卡片 -->
-            <Border Width="560" MinHeight="400"
+            <Border MinHeight="400"
+                    HorizontalAlignment="Stretch"
                     Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                     BorderThickness="1" CornerRadius="8" Padding="20">

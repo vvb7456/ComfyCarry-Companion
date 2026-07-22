@@ -20,14 +20,6 @@
                 </StackPanel>
 
                 <StackPanel Spacing="4">
-                    <TextBlock x:Name="SourceLabel"/>
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                        <TextBox x:Name="SourceBox" IsReadOnly="True"/>
-                        <Button x:Name="BrowseSourceBtn" Grid.Column="1" Click="BrowseSource_Click"/>
-                    </Grid>
-                </StackPanel>
-
-                <StackPanel Spacing="4">
                     <TextBlock x:Name="LocalPathLabel"/>
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                         <TextBox x:Name="LocalPathBox" IsReadOnly="True"/>

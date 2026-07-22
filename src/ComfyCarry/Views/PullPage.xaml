@@ -6,7 +6,7 @@
     <Grid>
         <!-- 空状态 -->
         <StackPanel x:Name="EmptyState" Visibility="Collapsed"
-                    HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16" MaxWidth="480">
+                    HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16">
             <FontIcon Glyph="&#xE896;" FontSize="48" Opacity="0.4" HorizontalAlignment="Center"/>
             <TextBlock x:Name="EmptyTitle" Style="{ThemeResource SubtitleTextBlockStyle}" HorizontalAlignment="Center"/>
             <TextBlock x:Name="EmptyDesc" TextWrapping="Wrap" HorizontalAlignment="Center" Opacity="0.7" TextAlignment="Center"/>
@@ -16,32 +16,72 @@
 
         <!-- 主内容 -->
         <ScrollViewer x:Name="MainContent" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
-            <StackPanel Padding="40,32,40,16" MaxWidth="720" HorizontalAlignment="Center" Spacing="20">
+            <StackPanel Padding="40,32,40,16" HorizontalAlignment="Stretch" Spacing="20">
                 <!-- 标题 -->
                 <StackPanel Spacing="4">
                     <TextBlock x:Name="TitleText" Style="{ThemeResource SubtitleTextBlockStyle}"/>
                     <TextBlock x:Name="SubtitleText" Opacity="0.7"/>
                 </StackPanel>
 
-                <!-- 连接条 -->
-                <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="12" VerticalAlignment="Center">
-                    <ComboBox x:Name="InstanceBox" Width="220" SelectionChanged="Instance_SelectionChanged"/>
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                        <Ellipse x:Name="StatusDot" Width="8" Height="8" Fill="Gray"/>
-                        <TextBlock x:Name="StatusText" VerticalAlignment="Center" FontSize="12"/>
-                    </StackPanel>
-                    <TextBlock x:Name="DavHostText" Grid.Column="2" VerticalAlignment="Center" Opacity="0.5" FontSize="12" TextTrimming="CharacterEllipsis"/>
-                    <Button x:Name="AddInstanceBtn" Grid.Column="3" Click="Connect_Click" Padding="12,6"/>
-                </Grid>
+                <!-- 当前连接的 ComfyCarry -->
+                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1" CornerRadius="8" Padding="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <StackPanel Spacing="2">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Ellipse x:Name="StatusDot" Width="8" Height="8" Fill="Gray"/>
+                                <TextBlock x:Name="InstanceLabel" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock x:Name="DavHostText" Opacity="0.5" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                        <Button x:Name="ReconnectBtn" Grid.Column="1" Click="Connect_Click" Padding="16,6" VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
 
-                <!-- 自动取回条 -->
-                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
-                    <ToggleSwitch x:Name="AutoPullSwitch" Toggled="AutoPull_Toggled" OnContent="" OffContent="" MinWidth="80"/>
-                    <TextBlock x:Name="AutoPullDesc" Grid.Column="1" VerticalAlignment="Center" Opacity="0.6" FontSize="12" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
-                    <TextBlock x:Name="PullStatusText" Grid.Column="2" VerticalAlignment="Center" FontSize="12"/>
-                </Grid>
+                <!-- 当前同步（常驻） -->
+                <StackPanel Spacing="6">
+                    <TextBlock x:Name="ProgressHeader" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                    <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1" CornerRadius="8" Padding="16">
+                        <Grid>
+                            <!-- 空闲 -->
+                            <StackPanel x:Name="ProgressIdle" Spacing="4">
+                                <TextBlock x:Name="ProgressIdleText" Opacity="0.6"/>
+                                <TextBlock x:Name="ProgressIdleDesc" Opacity="0.4" FontSize="12"/>
+                            </StackPanel>
 
-                <!-- 规则区 -->
+                            <!-- 同步中 -->
+                            <StackPanel x:Name="ProgressSyncing" Spacing="8" Visibility="Collapsed">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                    <TextBlock x:Name="SyncRuleName" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                    <Button x:Name="CancelSyncBtn" Grid.Column="1" Click="CancelSync_Click" Padding="12,4" FontSize="12"/>
+                                </Grid>
+                                <TextBlock x:Name="SyncFileName" Opacity="0.7" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                    <ProgressBar x:Name="SyncProgressBar" Maximum="100"/>
+                                    <TextBlock x:Name="SyncPctText" Grid.Column="1" FontSize="12" VerticalAlignment="Center"/>
+                                </Grid>
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                    <TextBlock x:Name="SyncFilesText" Opacity="0.5" FontSize="11"/>
+                                    <TextBlock x:Name="SyncSpeedText" Grid.Column="1" Opacity="0.5" FontSize="11"/>
+                                </Grid>
+                            </StackPanel>
+
+                            <!-- 失败 -->
+                            <StackPanel x:Name="ProgressFailed" Spacing="8" Visibility="Collapsed">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                    <TextBlock x:Name="FailedRuleName" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                    <Button x:Name="RetrySyncBtn" Grid.Column="1" Click="RetrySync_Click" Padding="12,4" FontSize="12"/>
+                                </Grid>
+                                <TextBlock x:Name="FailedErrorText" Opacity="0.6" FontSize="12" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+
+                <!-- 同步规则 -->
                 <StackPanel Spacing="12">
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                         <TextBlock x:Name="RulesHeader" Style="{ThemeResource BodyStrongTextBlockStyle}" VerticalAlignment="Center"/>
@@ -69,7 +109,6 @@
                                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                                         BorderThickness="1" CornerRadius="8" Padding="16">
                                     <StackPanel Spacing="8">
-                                        <!-- 第一行：名称 + chips + 启用 -->
                                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                                             <StackPanel Orientation="Horizontal" Spacing="8">
                                                 <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" VerticalAlignment="Center"/>
@@ -80,23 +119,16 @@
                                                     <TextBlock Text="{x:Bind TriggerLabel}" FontSize="11"/>
                                                 </Border>
                                             </StackPanel>
-                                            <CheckBox Grid.Column="1" IsChecked="{x:Bind Enabled, Mode=TwoWay}"
-                                                      Click="RuleEnabled_Click" Tag="{x:Bind RuleId}" MinWidth="0"/>
+                                            <ToggleSwitch Grid.Column="1" IsOn="{x:Bind Enabled}"
+                                                      Toggled="RuleEnabled_Toggled" Tag="{x:Bind RuleId}"
+                                                      OnContent="" OffContent="" MinWidth="44"/>
                                         </Grid>
-                                        <!-- 第二行：路径 -->
                                         <TextBlock Text="{x:Bind PathSummary}" Opacity="0.7" FontSize="12" TextTrimming="CharacterEllipsis"/>
-                                        <!-- 第三行：进度（活跃时） -->
-                                        <Grid Visibility="{x:Bind ProgressVisible}" ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                                            <ProgressBar Value="{x:Bind Progress}" Maximum="100"/>
-                                            <TextBlock Grid.Column="1" Text="{x:Bind ProgressLabel}" FontSize="11" VerticalAlignment="Center"/>
-                                        </Grid>
-                                        <!-- 第四行：上次结果 + 操作 -->
                                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                                             <TextBlock Text="{x:Bind LastRunText}" Opacity="0.5" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
                                                 <Button Content="{x:Bind RunLabel}" Tag="{x:Bind RuleId}" Click="RunOnce_Click" Padding="10,4" FontSize="12"/>
                                                 <Button Content="{x:Bind EditLabel}" Tag="{x:Bind RuleId}" Click="EditRule_Click" Padding="10,4" FontSize="12"/>
-                                                <Button Content="{x:Bind OpenLabel}" Tag="{x:Bind LocalPath}" Click="OpenFolder_Click" Padding="10,4" FontSize="12"/>
                                                 <Button Content="{x:Bind DeleteLabel}" Tag="{x:Bind RuleId}" Click="DeleteRule_Click" Padding="10,4" FontSize="12"/>
                                             </StackPanel>
                                         </Grid>

@@ -11,9 +11,14 @@ namespace ComfyCarry.Services;
 public sealed class RcloneService
 {
     private readonly AppPaths _paths;
+    private readonly SettingsService _settings;
     public string ExePath => _paths.RcloneExePath;
 
-    public RcloneService(AppPaths paths) => _paths = paths;
+    public RcloneService(AppPaths paths, SettingsService settings)
+    {
+        _paths = paths;
+        _settings = settings;
+    }
 
     public bool IsPresent => File.Exists(ExePath);
 
@@ -383,11 +388,11 @@ public sealed class RcloneService
 
     public async Task<int> CreateStandardTreeAsync(string confPath, string remote, string? proxy = null, CancellationToken ct = default)
     {
-        var dirs = new[] { "models", "models/checkpoints", "models/loras", "models/vae", "models/embeddings", "output", "input", "workflow", "temp" };
+        var subdirs = new[] { "models/checkpoints", "models/loras", "models/vae", "models/embeddings", "output", "input", "workflow", "temp" };
         int last = 0;
-        foreach (var d in dirs)
+        foreach (var d in subdirs)
         {
-            last = await MkdirAsync(confPath, remote, d, proxy, ct);
+            last = await MkdirAsync(confPath, remote, $"ComfyCarry/{d}", proxy, ct);
         }
         return last;
     }
@@ -414,7 +419,7 @@ public sealed class RcloneService
             ["pass"] = obscuredPass,
             ["vendor"] = "other",
         };
-        await ConfigCreateAsync(_paths.AppRcloneConf, remoteName, "webdav", opts, null, null, null, ct);
+        await ConfigCreateAsync(_paths.PullRcloneConf, remoteName, "webdav", opts, null, null, null, ct);
     }
 
     /// <summary>
@@ -438,12 +443,12 @@ public sealed class RcloneService
         CancellationToken ct = default)
     {
         var remoteName = InstanceRemoteName(inst);
-        var src = $"{remoteName}:{rule.Source}";
+        var src = $"{remoteName}:";
         var dst = rule.LocalPath;
         var args = new List<string>
         {
             rule.Method, src, dst,
-            "--config", _paths.AppRcloneConf,
+            "--config", _paths.PullRcloneConf,
             "--multi-thread-cutoff", "32M",
             "--multi-thread-streams", "4",
             "--use-json-log",
@@ -459,6 +464,13 @@ public sealed class RcloneService
         args.AddRange(BuildFilterArgs(rule));
         // 远端只读列举（WebDAV），不检查本地 mtime 差异以外的东西
         args.Add("--no-traverse");
+        // 文件稳定延迟：跳过最近修改的文件，防止拉取写入中的不完整文件
+        var minAge = _settings.Data.MinAgeSec;
+        if (minAge > 0)
+        {
+            args.Add("--min-age");
+            args.Add($"{minAge}s");
+        }
 
         Directory.CreateDirectory(dst);
         return await RunStreamingAsync(args, null, onLog, ct);
@@ -466,19 +478,21 @@ public sealed class RcloneService
 
     private static List<string> BuildFilterArgs(PullRule rule)
     {
-        var args = new List<string>();
+        var args = new List<string>
+        {
+            "--filter", "- .*/**",
+        };
         switch (rule.Content)
         {
             case "images":
-                args.Add("--include");
-                args.Add("*.{png,jpg,jpeg,webp,gif,bmp,tiff,tif}");
+                args.Add("--filter"); args.Add("+ *.{png,jpg,jpeg,webp,gif,bmp,tiff,tif}");
                 break;
             case "videos":
-                args.Add("--include");
-                args.Add("*.{mp4,mov,webm,mkv,avi}");
+                args.Add("--filter"); args.Add("+ *.{mp4,mov,webm,mkv,avi}");
                 break;
-            // "all": 不加 include
+            // "all": 不加 include，同步除隐藏目录外的所有文件
         }
+        args.Add("--filter"); args.Add("- *");
         if (!rule.Subdirs)
         {
             args.Add("--max-depth");
@@ -496,14 +510,15 @@ public sealed class RcloneService
         var args = new List<string>
         {
             "lsf", $"{remoteName}:{remotePath}",
-            "--config", _paths.AppRcloneConf,
+            "--config", _paths.PullRcloneConf,
             "--format", "ps",   // p=path s=size
             "--separator", "|",
             // 不加 --files-only / --dirs-only：同时列文件和目录
         };
-        var (code, stdout, _) = await RunAsync(args, null, ct);
+        var (code, stdout, stderr) = await RunAsync(args, null, ct);
+        if (code != 0)
+            throw new Exception(stderr.Length > 0 ? stderr.Trim() : $"rclone lsf exited {code}");
         var list = new List<RemoteEntry>();
-        if (code != 0) return list;
         foreach (var line in stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries))
         {
             var parts = line.Split('|');
@@ -571,7 +586,13 @@ public sealed class RcloneService
 
         var psi = BuildPsi(args, proxy);
         psi.RedirectStandardError = false; // JSON 日志走 stdout
+        psi.StandardErrorEncoding = null;
         using var p = Process.Start(psi)!;
+        // 注册取消：杀掉 rclone 进程树，否则进程会继续跑
+        await using var _ = ct.Register(() =>
+        {
+            try { if (!p.HasExited) p.Kill(entireProcessTree: true); } catch { /* ignore */ }
+        });
         // rclone --use-json-log 输出到 stdout，逐行读
         while (!p.StandardOutput.EndOfStream)
         {

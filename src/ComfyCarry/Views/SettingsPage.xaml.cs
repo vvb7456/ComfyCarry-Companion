@@ -31,9 +31,15 @@ public sealed partial class SettingsPage : Page
         ThemeSystem.Content = L.T("settings.theme.system");
         ThemeLight.Content = L.T("settings.theme.light");
         ThemeDark.Content = L.T("settings.theme.dark");
+        AutoSyncSwitch.Header = L.T("settings.autoSync");
         AutoStartSwitch.Header = L.T("settings.autostart");
         CloseToTraySwitch.Header = L.T("settings.closeToTray");
         MinimizeToTraySwitch.Header = L.T("settings.minimizeToTray");
+        SyncParamsHeader.Text = L.T("settings.syncParams");
+        WatchIntervalLabel.Text = L.T("settings.watchInterval");
+        WatchIntervalHint.Text = L.T("settings.watchInterval.hint");
+        MinAgeLabel.Text = L.T("settings.minAge");
+        MinAgeHint.Text = L.T("settings.minAge.hint");
         ProxyHeader.Text = L.T("settings.proxy");
         ProxyHint.Text = L.T("settings.proxy.hint");
         AboutHeader.Text = L.T("settings.about");
@@ -52,9 +58,12 @@ public sealed partial class SettingsPage : Page
                 rb.IsChecked = (rb.Tag as string) == s.Language;
             foreach (var rb in ThemeRadios.Items.OfType<RadioButton>())
                 rb.IsChecked = (rb.Tag as string) == s.Theme.ToString();
+            AutoSyncSwitch.IsOn = s.AutoSync;
             AutoStartSwitch.IsOn = s.StartWithWindows;
             CloseToTraySwitch.IsOn = s.CloseToTray;
             MinimizeToTraySwitch.IsOn = s.MinimizeToTray;
+            WatchIntervalBox.Value = s.PullWatchIntervalSec;
+            MinAgeBox.Value = s.MinAgeSec;
             ProxyBox.Text = s.Proxy ?? "";
         }
         finally { _loading = false; }
@@ -87,6 +96,27 @@ public sealed partial class SettingsPage : Page
             });
             App.MainWindow.ApplyTheme();
         }
+    }
+
+    private void AutoSync_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        App.Hub.Settings.Update(s => s.AutoSync = AutoSyncSwitch.IsOn);
+    }
+
+    private void WatchInterval_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs e)
+    {
+        if (_loading) return;
+        var v = (int)Math.Round(sender.Value);
+        if (v < 5) v = 5;
+        App.Hub.Settings.Update(s => s.PullWatchIntervalSec = v);
+    }
+
+    private void MinAge_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs e)
+    {
+        if (_loading) return;
+        var v = (int)Math.Max(0, Math.Round(sender.Value));
+        App.Hub.Settings.Update(s => s.MinAgeSec = v);
     }
 
     private void AutoStart_Toggled(object sender, RoutedEventArgs e)

@@ -4,10 +4,10 @@ using ComfyCarry.Models;
 namespace ComfyCarry.Services;
 
 /// <summary>
-/// 后台规则驱动 rclone 拉取引擎（SPEC §3.4）。
-/// - watch 规则：按 IntervalSec 周期触发。
+/// 后台规则驱动 rclone 同步引擎。
+/// - watch 规则：按 IntervalSec 周期触发（需 AutoSync 开启）。
 /// - manual 规则：由 UI 调用 RunOnceAsync。
-/// 每次：建/确保 webdav remote → 创建 Job → rclone <method> → 解析日志回报 → finish。
+/// 支持 CancellationTokenSource 取消当前同步。
 /// </summary>
 public sealed class PullEngine
 {
@@ -20,8 +20,9 @@ public sealed class PullEngine
     private readonly SettingsService _settings;
     private readonly CancellationToken _appToken;
     private Timer? _watchTimer;
+    private CancellationTokenSource? _currentCts;
 
-    public bool Paused { get; set; }
+    public bool Paused => !_settings.Data.AutoSync;
 
     public PullEngine(RcloneService rclone, RuleEngine rules, RuleStore ruleStore, JobReporter jobs,
         InstanceStore instances, AppPaths paths, SettingsService settings, CancellationToken appToken)
@@ -47,6 +48,13 @@ public sealed class PullEngine
     {
         _watchTimer?.Dispose();
         _watchTimer = null;
+        _currentCts?.Cancel();
+    }
+
+    /// <summary>取消当前正在执行的同步任务。</summary>
+    public void CancelCurrent()
+    {
+        _currentCts?.Cancel();
     }
 
     private async void Tick(object? _)
@@ -54,9 +62,10 @@ public sealed class PullEngine
         if (Paused) return;
         var inst = _instances.Current;
         if (inst is null) return;
+        if (_rules.Status == "syncing") return;
         try
         {
-            var watchRules = _ruleStore.RulesFor(inst.InstanceLabel)
+            var watchRules = _ruleStore.All
                 .Where(r => r.Enabled && r.Trigger == "watch" && !string.IsNullOrEmpty(r.LocalPath)).ToList();
             foreach (var rule in watchRules)
             {
@@ -68,18 +77,21 @@ public sealed class PullEngine
     }
 
     /// <summary>UI 手动触发某条规则。</summary>
-    public async Task<bool> RunOnceAsync(PanelInstance inst, PullRule rule, CancellationToken ct = default)
+    public async Task<bool> RunOnceAsync(PanelInstance inst, PullRule rule, CancellationToken externalCt = default)
     {
         if (!_rclone.IsPresent)
         {
-            _rules.MarkError("rclone.exe 缺失");
+            _rules.MarkError("rclone.exe missing");
             return false;
         }
         if (string.IsNullOrEmpty(rule.LocalPath))
         {
-            _rules.MarkError("规则未设置本机路径");
+            _rules.MarkError("rule has no local path");
             return false;
         }
+
+        _currentCts = CancellationTokenSource.CreateLinkedTokenSource(externalCt, _appToken);
+        var ct = _currentCts.Token;
 
         try
         {
@@ -104,7 +116,7 @@ public sealed class PullEngine
                     int pct = entry.Percentage is { } d ? (int)Math.Round(d) : 0;
                     long speed = entry.Speed is { } s ? (long)s : (long)(entry.Stats?.Speed ?? 0);
                     string file = entry.Object ?? entry.Name ?? "";
-                    _rules.ReportProgress(file, pct, speed);
+                    _rules.ReportProgress(file, pct, speed, filesSynced);
                     filesSynced++;
                     await _jobs.EventAsync(inst, jobId, "file_done", rule.RuleId, pars: new() { ["file"] = file, ["pct"] = pct, ["speed"] = speed }, ct: ct);
                 }
@@ -114,14 +126,13 @@ public sealed class PullEngine
                 }
             }, ct);
 
-            rule.LastResult = code == 0 ? $"{filesSynced} 文件 · 成功" : $"失败: rclone exit {code}";
+            rule.LastResult = code == 0 ? $"{filesSynced} files ok" : $"failed: rclone exit {code}";
             rule.LastRunAt = DateTime.Now;
-            _ruleStore.Upsert(inst.InstanceLabel, rule);
+            _ruleStore.Upsert(rule);
 
             if (code == 0)
             {
                 await _jobs.FinishAsync(inst, jobId, "success", filesSynced: filesSynced, summary: rule.Name, ct: ct);
-                rule.StatusText = "idle";
                 _rules.MarkIdle();
                 return true;
             }
@@ -134,21 +145,26 @@ public sealed class PullEngine
         }
         catch (OperationCanceledException)
         {
-            rule.LastResult = "已取消";
+            rule.LastResult = "cancelled";
             rule.LastRunAt = DateTime.Now;
-            _ruleStore.Upsert(inst.InstanceLabel, rule);
+            _ruleStore.Upsert(rule);
             await _jobs.FinishAsync(inst, jobId, "cancelled", filesSynced: filesSynced, summary: "cancelled", ct: CancellationToken.None);
             _rules.MarkIdle();
             return false;
         }
         catch (Exception ex)
         {
-            rule.LastResult = $"失败: {ex.Message}";
+            rule.LastResult = $"failed: {ex.Message}";
             rule.LastRunAt = DateTime.Now;
-            _ruleStore.Upsert(inst.InstanceLabel, rule);
+            _ruleStore.Upsert(rule);
             await _jobs.FinishAsync(inst, jobId, "failed", filesSynced: filesSynced, summary: ex.Message, ct: CancellationToken.None);
             _rules.MarkError(ex.Message);
             return false;
+        }
+        finally
+        {
+            _currentCts?.Dispose();
+            _currentCts = null;
         }
     }
 }

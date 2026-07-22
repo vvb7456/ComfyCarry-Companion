@@ -10,8 +10,9 @@ public sealed class AppPaths
     public string Root { get; }
     public string DataDir { get; }
     public string RcloneExePath { get; }
-    public string AppRcloneConf { get; }     // Tab2 内置 webdav remote 用
-    public string TempConfDir { get; }      // Tab1 向导临时 conf
+    public string CloudRcloneConf { get; }    // Tab1 云存储 remote
+    public string PullRcloneConf { get; }     // Tab2 webdav remote
+    public string TempConfDir { get; }        // Tab1 向导临时 conf
     public string InstancesFile { get; }
     public string RulesFile { get; }
     public string SettingsFile { get; }
@@ -25,7 +26,8 @@ public sealed class AppPaths
             "ComfyCarry");
         DataDir = Path.Combine(Root, "data");
         RcloneExePath = Path.Combine(AppContext.BaseDirectory, "rclone.exe");
-        AppRcloneConf = Path.Combine(DataDir, "companion-rclone.conf");
+        CloudRcloneConf = Path.Combine(DataDir, "cloud-rclone.conf");
+        PullRcloneConf = Path.Combine(DataDir, "pull-rclone.conf");
         TempConfDir = Path.Combine(DataDir, "wizard");
         InstancesFile = Path.Combine(DataDir, "instances.json");
         RulesFile = Path.Combine(DataDir, "rules.json");

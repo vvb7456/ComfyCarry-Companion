@@ -31,7 +31,7 @@ public sealed class ServiceHub : IDisposable
         Settings = new SettingsService(Paths);
         Locale = new LocalizationService(Settings);
         Instances = new InstanceStore(Paths, Secrets);
-        Rclone = new RcloneService(Paths);
+        Rclone = new RcloneService(Paths, Settings);
         Api = new CompanionApiClient(Instances);
         Jobs = new JobReporter(Api);
         RuleStore = new RuleStore(Paths);

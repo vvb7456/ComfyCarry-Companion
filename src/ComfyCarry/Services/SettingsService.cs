@@ -12,8 +12,10 @@ public sealed class AppSettings
     public bool StartWithWindows { get; set; } = false;
     public bool MinimizeToTray { get; set; } = true;
     public bool CloseToTray { get; set; } = true;
+    public bool AutoSync { get; set; } = true;
     public int HeartbeatIntervalSec { get; set; } = 20;
-    public int PullWatchIntervalSec { get; set; } = 300;
+    public int PullWatchIntervalSec { get; set; } = 60;
+    public int MinAgeSec { get; set; } = 30;
     public string LastTab { get; set; } = "cloud";
     public string Proxy { get; set; } = "";          // rclone 代理地址，如 http://127.0.0.1:7890
 }

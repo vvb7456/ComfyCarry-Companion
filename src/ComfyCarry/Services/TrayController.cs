@@ -175,7 +175,7 @@ public sealed class TrayController : IDisposable
     private void TogglePause()
     {
         _paused = !_paused;
-        App.Hub.Pull.Paused = _paused;
+        App.Hub.Settings.Update(s => s.AutoSync = !_paused);
         UpdateStatus(_statusKey);
     }
 

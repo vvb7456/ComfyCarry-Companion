@@ -1,6 +1,5 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Windows.Storage.Pickers;
 using ComfyCarry.Models;
 using ComfyCarry.Services;
 
@@ -34,9 +33,7 @@ public sealed partial class RuleEditDialog : ContentDialog
         PrimaryButtonText = L.T("common.save");
         CloseButtonText = L.T("common.cancel");
         NameLabel.Text = L.T("pull.rule.name") + " *";
-        SourceLabel.Text = L.T("pull.rule.source");
         LocalPathLabel.Text = L.T("pull.rule.localPath") + " *";
-        BrowseSourceBtn.Content = L.T("common.browse");
         BrowseLocalBtn.Content = L.T("pull.rule.select");
         ContentLabel.Text = L.T("pull.rule.content");
         ContentImagesBtn.Content = L.T("pull.rule.content.images");
@@ -56,7 +53,6 @@ public sealed partial class RuleEditDialog : ContentDialog
     private void Load()
     {
         NameBox.Text = Rule.Name;
-        SourceBox.Text = string.IsNullOrEmpty(Rule.Source) ? "output" : $"output/{Rule.Source}";
         LocalPathBox.Text = Rule.LocalPath;
         SubdirsCheck.IsChecked = Rule.Subdirs;
         EnabledCheck.IsChecked = Rule.Enabled;
@@ -97,56 +93,11 @@ public sealed partial class RuleEditDialog : ContentDialog
         if (sender is Button b && b.Tag is string tag) { _selectedTrigger = tag; UpdateSegmentedStyles(); }
     }
 
-    private async void BrowseSource_Click(object sender, RoutedEventArgs e)
+    private void BrowseLocal_Click(object sender, RoutedEventArgs e)
     {
-        var inst = App.Hub.Instances.Current;
-        if (inst is null) return;
-        List<string> dirs;
-        try
-        {
-            var entries = await App.Hub.Rclone.LsfAsync(inst, "output");
-            dirs = entries.Where(en => en.IsDir).Select(en => en.Name.TrimEnd('/')).ToList();
-        }
-        catch
-        {
-            ErrorBar.Message = L.T("pull.connect.browse.fail");
-            ErrorBar.IsOpen = true;
-            return;
-        }
-        if (dirs.Count == 0)
-        {
-            SourceBox.Text = "output";
-            Rule.Source = "";
-            return;
-        }
-        var dlg = new ContentDialog
-        {
-            Title = L.T("pull.rule.source"),
-            CloseButtonText = L.T("common.cancel"),
-            PrimaryButtonText = L.T("common.ok"),
-            XamlRoot = this.XamlRoot,
-        };
-        var list = new ListView { SelectionMode = ListViewSelectionMode.Single };
-        list.Items.Add("output");
-        foreach (var d in dirs) list.Items.Add(d);
-        dlg.Content = list;
-        var r = await dlg.ShowAsync();
-        if (r == ContentDialogResult.Primary && list.SelectedItem is string sel)
-        {
-            if (sel == "output") { Rule.Source = ""; SourceBox.Text = "output"; }
-            else { Rule.Source = sel; SourceBox.Text = $"output/{sel}"; }
-        }
-    }
-
-    private async void BrowseLocal_Click(object sender, RoutedEventArgs e)
-    {
-        var picker = new FolderPicker();
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);
-        WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
-        picker.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
-        picker.FileTypeFilter.Add("*");
-        var folder = await picker.PickSingleFolderAsync();
-        if (folder is not null) LocalPathBox.Text = folder.Path;
+        var path = Services.FolderPicker.PickFolder(hwnd, L.T("pull.rule.localPath"));
+        if (path is not null) LocalPathBox.Text = path;
     }
 
     private void OnPrimaryClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)

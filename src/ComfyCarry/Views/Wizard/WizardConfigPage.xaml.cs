@@ -269,7 +269,7 @@ public sealed partial class WizardConfigPage : Page
         {
             if (!File.Exists(WizardState.TempConfPath)) return;
             var tempText = File.ReadAllText(WizardState.TempConfPath);
-            var appConf = App.Hub.Paths.AppRcloneConf;
+            var appConf = App.Hub.Paths.CloudRcloneConf;
             var appText = File.Exists(appConf) ? File.ReadAllText(appConf) : "";
             var tempRemotes = ParseRemotes(tempText);
             var appRemotes = ParseRemotes(appText);

@@ -5,7 +5,7 @@
     xmlns:local="using:ComfyCarry.Views"
     NavigationCacheMode="Required">
     <ScrollViewer Padding="36,24,36,24" VerticalScrollBarVisibility="Auto">
-        <StackPanel MaxWidth="820" HorizontalAlignment="Center" Spacing="24">
+        <StackPanel HorizontalAlignment="Stretch" Spacing="24">
             <TextBlock x:Name="Title" Text="设置" Style="{ThemeResource SubtitleTextBlockStyle}"/>
 
             <!-- 实例管理 -->
@@ -50,9 +50,27 @@
 
             <!-- 其它选项 -->
             <StackPanel Spacing="6">
+                <ToggleSwitch x:Name="AutoSyncSwitch" Header="自动同步" Toggled="AutoSync_Toggled"/>
                 <ToggleSwitch x:Name="AutoStartSwitch" Header="开机自启" Toggled="AutoStart_Toggled"/>
                 <ToggleSwitch x:Name="CloseToTraySwitch" Header="关闭窗口时最小化到托盘" Toggled="CloseToTray_Toggled"/>
                 <ToggleSwitch x:Name="MinimizeToTraySwitch" Header="最小化时隐藏到托盘" Toggled="MinimizeToTray_Toggled"/>
+            </StackPanel>
+
+            <!-- 同步参数 -->
+            <StackPanel Spacing="8">
+                <TextBlock x:Name="SyncParamsHeader" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                <StackPanel Spacing="4">
+                    <TextBlock x:Name="WatchIntervalLabel" Opacity="0.7"/>
+                    <NumberBox x:Name="WatchIntervalBox" Minimum="5" Maximum="3600" SpinButtonPlacementMode="Compact"
+                               ValueChanged="WatchInterval_ValueChanged" HorizontalAlignment="Stretch"/>
+                    <TextBlock x:Name="WatchIntervalHint" Opacity="0.5" FontSize="12" TextWrapping="Wrap"/>
+                </StackPanel>
+                <StackPanel Spacing="4">
+                    <TextBlock x:Name="MinAgeLabel" Opacity="0.7"/>
+                    <NumberBox x:Name="MinAgeBox" Minimum="0" Maximum="600" SpinButtonPlacementMode="Compact"
+                               ValueChanged="MinAge_ValueChanged" HorizontalAlignment="Stretch"/>
+                    <TextBlock x:Name="MinAgeHint" Opacity="0.5" FontSize="12" TextWrapping="Wrap"/>
+                </StackPanel>
             </StackPanel>
 
             <!-- 网络代理 -->

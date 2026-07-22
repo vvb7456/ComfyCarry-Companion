@@ -13,9 +13,6 @@ public sealed class PullRule
     [JsonPropertyName("name")]
     public string Name { get; set; } = "";
 
-    [JsonPropertyName("source")]
-    public string Source { get; set; } = "";        // 实例 output 下相对子路径
-
     [JsonPropertyName("local_path")]
     public string LocalPath { get; set; } = "";     // Windows 本机路径
 
