@@ -5,3 +5,4 @@ publish/
 *.user
 .vs/
 src/ComfyCarry/Assets/rclone.exe
+ci-log.txt
