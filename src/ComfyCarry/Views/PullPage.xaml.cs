@@ -100,7 +100,7 @@ public sealed partial class PullPage : Page
 
     private void Connect_Click(object sender, RoutedEventArgs e)
     {
-        var dlg = new ConnectDialog();
+        var dlg = new ConnectDialog { XamlRoot = this.XamlRoot };
         _ = dlg.ShowAsync();
     }
 
@@ -109,7 +109,7 @@ public sealed partial class PullPage : Page
         var inst = App.Hub.Instances.Current;
         if (inst is null) return;
         var rule = new PullRule { Name = "", Source = "", LocalPath = "", Method = "copy", Content = "images", Subdirs = true, Trigger = "watch", Enabled = true };
-        var dlg = new RuleEditDialog(rule, true);
+        var dlg = new RuleEditDialog(rule, true) { XamlRoot = this.XamlRoot };
         var result = await dlg.ShowAsync();
         if (result == ContentDialogResult.Primary)
         {
@@ -124,7 +124,7 @@ public sealed partial class PullPage : Page
         if (inst is null) return;
         var rule = App.Hub.Rules.Rules.FirstOrDefault(r => r.RuleId == ruleId);
         if (rule is null) return;
-        var dlg = new RuleEditDialog(rule, false);
+        var dlg = new RuleEditDialog(rule, false) { XamlRoot = this.XamlRoot };
         var result = await dlg.ShowAsync();
         if (result == ContentDialogResult.Primary)
         {
