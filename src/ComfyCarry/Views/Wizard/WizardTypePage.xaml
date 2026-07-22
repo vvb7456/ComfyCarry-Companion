@@ -2,20 +2,26 @@
     x:Class="ComfyCarry.Views.Wizard.WizardTypePage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <ScrollViewer Padding="24,24,24,24" VerticalScrollBarVisibility="Auto">
-        <StackPanel MaxWidth="720" Spacing="16" HorizontalAlignment="Left">
-            <TextBlock x:Name="Lbl" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
-
-            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                    BorderThickness="1" CornerRadius="8" Padding="20">
+    <Grid RowDefinitions="*,Auto">
+        <!-- 内容区：可滚动 -->
+        <ScrollViewer Grid.Row="0" Padding="40,32,40,16" VerticalScrollBarVisibility="Auto">
+            <StackPanel MaxWidth="640" Spacing="16">
+                <TextBlock x:Name="Lbl" Style="{ThemeResource SubtitleTextBlockStyle}"/>
                 <RadioButtons x:Name="TypeRadios" MaxColumns="1" SelectionChanged="Type_SelectionChanged"/>
-            </Border>
-
-            <StackPanel Orientation="Horizontal" Spacing="8">
-                <Button x:Name="CancelBtn" Click="Cancel_Click"/>
-                <Button x:Name="NextBtn" Click="Next_Click" Style="{ThemeResource AccentButtonStyle}"/>
             </StackPanel>
-        </StackPanel>
-    </ScrollViewer>
+        </ScrollViewer>
+
+        <!-- 固定底栏 -->
+        <Border Grid.Row="1" Background="{ThemeResource LayerFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="0,1,0,0" Padding="40,12">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                <Button x:Name="CancelBtn" Grid.Column="0" Click="Cancel_Click"
+                        Padding="20,8" MinWidth="100"/>
+                <Button x:Name="NextBtn" Grid.Column="2" Click="Next_Click"
+                        Style="{ThemeResource AccentButtonStyle}" Padding="20,8" MinWidth="120"
+                        Content="下一步" IsEnabled="False"/>
+            </Grid>
+        </Border>
+    </Grid>
 </Page>

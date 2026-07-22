@@ -25,10 +25,14 @@ public sealed partial class PullPage : Page
     private void Localize()
     {
         IntroText.Text = L.T("pull.intro");
-        ConnectBtn.Content = L.T("pull.connect");
+        ConnectBtn.Content = L.T("pull.addInstance");
         RefreshBtn.Content = L.T("common.refresh");
         NewRuleBtn.Content = L.T("pull.rule.new");
-        NoInstanceBar.Message = L.T("pull.noInstance");
+        RulesHeader.Text = L.T("pull.rules");
+        NoRulesText.Text = L.T("pull.noRules");
+        EmptyTitle.Text = L.T("pull.empty.title");
+        EmptyDesc.Text = L.T("pull.empty.desc");
+        EmptyConnectBtn.Content = L.T("pull.connect");
     }
 
     private void LoadInstances()
@@ -41,7 +45,9 @@ public sealed partial class PullPage : Page
             if (inst.IsCurrent) InstanceBox.SelectedItem = item;
             InstanceBox.Items.Add(item);
         }
-        NoInstanceBar.IsOpen = App.Hub.Instances.All.Count == 0;
+        var hasInstances = App.Hub.Instances.All.Count > 0;
+        EmptyState.Visibility = hasInstances ? Visibility.Collapsed : Visibility.Visible;
+        MainContent.Visibility = hasInstances ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void Instance_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -56,12 +62,7 @@ public sealed partial class PullPage : Page
     private async Task RefreshAll()
     {
         var inst = App.Hub.Instances.Current;
-        if (inst is null || string.IsNullOrEmpty(inst.ApiKey))
-        {
-            NoInstanceBar.IsOpen = true;
-            return;
-        }
-        NoInstanceBar.IsOpen = false;
+        if (inst is null || string.IsNullOrEmpty(inst.ApiKey)) return;
         await App.Hub.Rules.RefreshAsync(inst);
         RefreshRulesUI();
         await Artifacts.LoadAsync(inst, "");
@@ -80,6 +81,7 @@ public sealed partial class PullPage : Page
             }
             Rules.Add(vm);
         }
+        NoRulesText.Visibility = Rules.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         var active = App.Hub.Rules.ActiveRule;
         ProgressRow.Visibility = active is null ? Visibility.Collapsed : Visibility.Visible;
         TotalProgress.Value = App.Hub.Rules.ProgressPct;

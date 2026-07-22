@@ -123,6 +123,63 @@ public sealed class RcloneService
     }
 
     /// <summary>
+    /// 检测端口是否落在 Windows 排除范围（Hyper-V/WSL 动态保留），
+    /// 若是则提权重启 winnat 释放动态保留后端口即可绑定。
+    /// </summary>
+    public bool TryReleaseExcludedPort(int port)
+    {
+        try
+        {
+            // 1. 检查是否在排除范围
+            var psi = new ProcessStartInfo
+            {
+                FileName = "netsh",
+                Arguments = "interface ipv4 show excludedportrange protocol=tcp",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+            };
+            using var p = Process.Start(psi);
+            if (p is null) return false;
+            var output = p.StandardOutput.ReadToEnd();
+            p.WaitForExit(5000);
+
+            bool inExcludedRange = false;
+            foreach (var line in output.Split('\n'))
+            {
+                var parts = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length >= 2 && int.TryParse(parts[0], out var start) && int.TryParse(parts[1], out var end))
+                {
+                    if (port >= start && port <= end) { inExcludedRange = true; break; }
+                }
+            }
+            if (!inExcludedRange) return false;
+
+            LogLine($"端口 {port} 在 Windows 排除范围内，尝试提权重启 winnat 释放");
+
+            // 2. 提权重启 winnat（释放动态端口保留）
+            var elev = new ProcessStartInfo
+            {
+                FileName = "cmd.exe",
+                Arguments = "/c net stop winnat & timeout /t 2 /nobreak >nul & net start winnat",
+                UseShellExecute = true,
+                Verb = "runas",
+                CreateNoWindow = true,
+                WindowStyle = ProcessWindowStyle.Hidden,
+            };
+            using var ep = Process.Start(elev);
+            ep?.WaitForExit(15000);
+            LogLine("winnat 重启完成");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            LogLine($"TryReleaseExcludedPort 失败: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
     /// 继续状态机：把用户的选择（或驱动的自动应答）回灌给 rclone。
     /// 仍以 config create &lt;name&gt; &lt;type&gt; --continue 形式发起（实测缺 type 会报 couldn't find type field）。
     /// </summary>
@@ -158,10 +215,11 @@ public sealed class RcloneService
         IEnumerable<KeyValuePair<string, string>> options,
         string? proxy = null,
         IProgress<string>? progress = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        IReadOnlyDictionary<string, string>? autoAnswers = null)
     {
         var st = await ConfigCreateAsync(confPath, name, type, options, proxy, null, null, ct);
-        return await DriveLoopAsync(confPath, name, type, st, proxy, progress, ct);
+        return await DriveLoopAsync(confPath, name, type, st, proxy, progress, ct, autoAnswers);
     }
 
     /// <summary>
@@ -169,17 +227,19 @@ public sealed class RcloneService
     /// </summary>
     public async Task<ConfigDriveResult> ConfigDriveContinueAsync(
         string confPath, string name, string type, ConfigDriveResult last, string result,
-        string? proxy = null, IProgress<string>? progress = null, CancellationToken ct = default)
+        string? proxy = null, IProgress<string>? progress = null, CancellationToken ct = default,
+        IReadOnlyDictionary<string, string>? autoAnswers = null)
     {
         if (last.Outcome != ConfigDriveOutcome.NeedChoice)
             return last;
         var st = await ConfigContinueAsync(confPath, name, type, last.State, result, proxy, ct);
-        return await DriveLoopAsync(confPath, name, type, st, proxy, progress, ct);
+        return await DriveLoopAsync(confPath, name, type, st, proxy, progress, ct, autoAnswers);
     }
 
     private async Task<ConfigDriveResult> DriveLoopAsync(
         string confPath, string name, string type,
-        RcloneConfigState st, string? proxy, IProgress<string>? progress, CancellationToken ct)
+        RcloneConfigState st, string? proxy, IProgress<string>? progress, CancellationToken ct,
+        IReadOnlyDictionary<string, string>? autoAnswers = null)
     {
         for (int step = 0; step < DriveMaxSteps; step++)
         {
@@ -196,6 +256,7 @@ public sealed class RcloneService
                 return ConfigDriveResult.Error("rclone returned no option but is not done.");
 
             var opt = st.Option;
+            LogLine($"step={step} opt.Name={opt.Name} Exclusive={opt.Exclusive} Examples={opt.Examples.Count}");
 
             // config_is_local：自动继续，result=true。
             // 这一步 rclone 打开浏览器并起本地 127.0.0.1:53682 回调，阻塞到登录完成。
@@ -208,17 +269,36 @@ public sealed class RcloneService
                 st = await ConfigContinueAsync(confPath, name, type, localState, "true", proxy, ct);
                 if (LooksLikePortBindError(st.Error))
                 {
-                    LogLine("53682 绑定失败(WSAEACCES?)，清理占用者后重试一次");
+                    LogLine("53682 绑定失败，清理占用者 + 检测排除范围后重试");
                     KillPortListener(OAuthPort);
+                    TryReleaseExcludedPort(OAuthPort);
+                    await Task.Delay(1000, ct);
                     st = await ConfigContinueAsync(confPath, name, type, localState, "true", proxy, ct);
                 }
-                progress?.Report("login_done");
+                // 只有确认 rclone 无错误才报告登录完成，否则让循环顶部的错误检查处理
+                if (string.IsNullOrEmpty(st.Error))
+                    progress?.Report("login_done");
                 continue;
             }
 
-            // 真正要用户选的：Exclusive && Type!=bool && Examples.Count>0
-            if (opt.Exclusive && !string.Equals(opt.Type, "bool", StringComparison.OrdinalIgnoreCase) && opt.Examples.Count > 0)
+            // 自动回答优先：无论 Exclusive 与否，只要 autoAnswers 命中就自动继续
+            if (autoAnswers is not null && autoAnswers.TryGetValue(opt.Name, out var autoVal))
             {
+                string? answer = ResolveAutoAnswer(autoVal, opt.Examples);
+                if (answer is not null)
+                {
+                    LogLine($"auto-answer {opt.Name} = {answer}");
+                    st = await ConfigContinueAsync(confPath, name, type, st.State, answer, proxy, ct);
+                    continue;
+                }
+                // __match 未命中 → 不自动回答，落到下面的 NeedChoice
+                LogLine($"auto-answer {opt.Name}: match failed, falling through to user choice. Examples: [{string.Join(" | ", opt.Examples.Select(e => e.Help))}]");
+            }
+
+            // 真正要用户选的：有 Examples 列表且非 bool 类型（无论 Exclusive 与否都展示给用户选）
+            if (!string.Equals(opt.Type, "bool", StringComparison.OrdinalIgnoreCase) && opt.Examples.Count > 1)
+            {
+                LogLine($"NeedChoice {opt.Name}: [{string.Join(" | ", opt.Examples.Select(e => $"{e.Value}={e.Help}"))}]");
                 return ConfigDriveResult.NeedChoice(st.State, opt.Name, opt.Examples);
             }
 
@@ -228,6 +308,37 @@ public sealed class RcloneService
         }
 
         return ConfigDriveResult.Error($"rclone config loop exceeded {DriveMaxSteps} steps.");
+    }
+
+    /// <summary>
+    /// 解析 AutoAnswers 值：
+    ///   "__first__" → 选 Examples[0].Value
+    ///   "__exact:text__" → 精确匹配 Help 文本（不区分大小写），返回首个命中的 Value；未命中返回 null
+    ///   "__match:keyword__" → 在 Examples 的 Help 中不区分大小写搜索 keyword，返回首个命中的 Value；未命中返回 null
+    ///   其它 → 直接作为字面量值返回
+    /// </summary>
+    private static string? ResolveAutoAnswer(string autoVal, List<RcloneExample> examples)
+    {
+        if (autoVal == "__first__")
+            return examples.Count > 0 ? examples[0].Value : null;
+
+        if (autoVal.StartsWith("__exact:", StringComparison.Ordinal) && autoVal.EndsWith("__", StringComparison.Ordinal))
+        {
+            var target = autoVal[8..^2];
+            var match = examples.FirstOrDefault(e =>
+                e.Help.Equals(target, StringComparison.OrdinalIgnoreCase));
+            return match?.Value;
+        }
+
+        if (autoVal.StartsWith("__match:", StringComparison.Ordinal) && autoVal.EndsWith("__", StringComparison.Ordinal))
+        {
+            var keyword = autoVal[8..^2];
+            var match = examples.FirstOrDefault(e =>
+                e.Help.Contains(keyword, StringComparison.OrdinalIgnoreCase));
+            return match?.Value;
+        }
+
+        return autoVal;
     }
 
     private static RcloneConfigState ParseState(string stdout, string stderr, int code)
@@ -418,12 +529,16 @@ public sealed class RcloneService
         }
         catch (OperationCanceledException)
         {
-            // 取消（如离开授权页/点取消）时杀掉进程，否则 rclone 授权服务会僵在后台占着 53682
             try { if (!p.HasExited) p.Kill(true); } catch { /* ignore */ }
             throw;
         }
-        var stdout = await stdoutTask;
-        var stderr = await stderrTask;
+        // 进程退出后，孙进程可能仍持有管道句柄导致 ReadToEnd hang。
+        // 加 3 秒超时兜底，超时则取已读到的内容。
+        var readAll = Task.WhenAll(stdoutTask, stderrTask);
+        var timeout = Task.Delay(3000, CancellationToken.None);
+        await Task.WhenAny(readAll, timeout);
+        var stdout = stdoutTask.IsCompletedSuccessfully ? stdoutTask.Result : "";
+        var stderr = stderrTask.IsCompletedSuccessfully ? stderrTask.Result : "";
         return (p.ExitCode, stdout, stderr);
     }
 

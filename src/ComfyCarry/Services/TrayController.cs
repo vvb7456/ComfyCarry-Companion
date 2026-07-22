@@ -1,66 +1,148 @@
 using System.Diagnostics;
+using System.Drawing;
+using System.Runtime.InteropServices;
 using H.NotifyIcon;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
 
 namespace ComfyCarry.Services;
 
 /// <summary>
 /// 系统托盘常驻（SPEC §3.1/§3.2）。关窗最小化到托盘，后台继续拉取。
 /// 菜单：显示主窗口 / 暂停·继续 / 退出。
-/// 使用 H.NotifyIcon.WinUI（参照 PigeonPost 的 InitializeTrayIcon 写法）。
+/// 右键菜单使用 Win32 原生 PopupMenu（不依赖 XAML Island，窗口隐藏时点击仍可响应）。
 /// </summary>
 public sealed class TrayController : IDisposable
 {
     private readonly TaskbarIcon _icon;
     private readonly LocalizationService L;
-    private readonly MenuFlyoutItem _pauseItem;
     private bool _paused;
     private string _statusKey = "tray.status.idle";
+
+    // Win32 菜单命令 ID
+    private const uint IDM_SHOW = 40001;
+    private const uint IDM_PAUSE = 40002;
+    private const uint IDM_EXIT = 40003;
 
     public bool Paused => _paused;
 
     public TrayController(LocalizationService locale)
     {
         L = locale;
-        _pauseItem = new MenuFlyoutItem { Text = L.T("tray.pause") };
 
         _icon = new TaskbarIcon
         {
             ToolTipText = L.T("app.title"),
-            ContextFlyout = BuildMenu(),
+            NoLeftClickDelay = true,
             LeftClickCommand = new RelayCommand(() => { Log("left-click"); ShowMainWindow(); }),
+            RightClickCommand = new RelayCommand(() => { Log("right-click"); ShowNativeMenu(); }),
         };
 
-        // 图标：从 exe 提取（csproj 的 ApplicationIcon 设置后，exe 自带图标）
+        // 图标：优先从 exe 提取嵌入图标，兜底用 app.ico
         try
         {
             var exePath = Environment.ProcessPath;
             if (exePath is not null && File.Exists(exePath))
             {
-                _icon.Icon = new System.Drawing.Icon(exePath);
+                _icon.Icon = Icon.ExtractAssociatedIcon(exePath) ?? LoadFallbackIcon();
+            }
+            else
+            {
+                _icon.Icon = LoadFallbackIcon();
             }
         }
-        catch { /* 无图标时 H.NotifyIcon 用占位，不阻塞 */ }
+        catch { _icon.Icon = LoadFallbackIcon(); }
 
         try { _icon.ForceCreate(); Log("icon ForceCreate ok"); }
         catch (Exception ex) { Debug.WriteLine($"[Tray] create: {ex}"); Log($"icon ForceCreate FAILED: {ex.Message}"); }
     }
 
-    private MenuFlyout BuildMenu()
+    private static Icon? LoadFallbackIcon()
     {
-        var menu = new MenuFlyout();
-        var miShow = new MenuFlyoutItem { Text = L.T("tray.show") };
-        miShow.Click += (s, e) => { Log("menu: show clicked"); ShowMainWindow(); };
-        _pauseItem.Click += (s, e) => { Log("menu: pause clicked"); TogglePause(); };
-        var miExit = new MenuFlyoutItem { Text = L.T("tray.exit") };
-        miExit.Click += (s, e) => { Log("menu: exit clicked"); ExitApp(); };
-        menu.Items.Add(miShow);
-        menu.Items.Add(_pauseItem);
-        menu.Items.Add(new MenuFlyoutSeparator());
-        menu.Items.Add(miExit);
-        return menu;
+        try
+        {
+            var icoPath = Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico");
+            return File.Exists(icoPath) ? new Icon(icoPath) : null;
+        }
+        catch { return null; }
     }
+
+    // ─── Win32 原生右键菜单 ───────────────────────────────────────────
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern IntPtr CreatePopupMenu();
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern bool AppendMenu(IntPtr hMenu, uint uFlags, UIntPtr uIDNewItem, string lpNewItem);
+
+    [DllImport("user32.dll")]
+    private static extern int TrackPopupMenu(IntPtr hMenu, uint uFlags, int x, int y, int nReserved, IntPtr hWnd, IntPtr prcRect);
+
+    [DllImport("user32.dll")]
+    private static extern bool DestroyMenu(IntPtr hMenu);
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    private const uint MF_STRING = 0x0000;
+    private const uint MF_SEPARATOR = 0x0800;
+    private const uint TPM_RETURNCMD = 0x0100;
+    private const uint TPM_RIGHTALIGN = 0x0008;
+    private const uint TPM_BOTTOMALIGN = 0x0020;
+
+    private void ShowNativeMenu()
+    {
+        var hMenu = CreatePopupMenu();
+        if (hMenu == IntPtr.Zero) return;
+
+        try
+        {
+            AppendMenu(hMenu, MF_STRING, (UIntPtr)IDM_SHOW, L.T("tray.show"));
+            var pauseText = _paused ? L.T("tray.resume") : L.T("tray.pause");
+            AppendMenu(hMenu, MF_STRING, (UIntPtr)IDM_PAUSE, pauseText);
+            AppendMenu(hMenu, MF_SEPARATOR, UIntPtr.Zero, "");
+            AppendMenu(hMenu, MF_STRING, (UIntPtr)IDM_EXIT, L.T("tray.exit"));
+
+            // 获取光标位置
+            GetCursorPos(out var pt);
+
+            // 必须用本应用窗口句柄 + SetForegroundWindow，否则菜单不弹出
+            var hwnd = GetAppHwnd();
+            if (hwnd != IntPtr.Zero) SetForegroundWindow(hwnd);
+
+            int cmd = TrackPopupMenu(hMenu, TPM_RETURNCMD | TPM_RIGHTALIGN | TPM_BOTTOMALIGN, pt.X, pt.Y, 0, hwnd, IntPtr.Zero);
+            Log($"menu cmd={cmd}");
+
+            switch ((uint)cmd)
+            {
+                case IDM_SHOW: ShowMainWindow(); break;
+                case IDM_PAUSE: TogglePause(); break;
+                case IDM_EXIT: ExitApp(); break;
+            }
+        }
+        finally
+        {
+            DestroyMenu(hMenu);
+        }
+    }
+
+    private static IntPtr GetAppHwnd()
+    {
+        try
+        {
+            if (App.MainWindow is not null)
+                return WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);
+        }
+        catch { }
+        return IntPtr.Zero;
+    }
+
+    [DllImport("user32.dll")]
+    private static extern bool GetCursorPos(out POINT lpPoint);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct POINT { public int X; public int Y; }
+
+    // ─── 通用逻辑 ─────────────────────────────────────────────────────
 
     private static void Log(string msg)
     {
@@ -73,29 +155,20 @@ public sealed class TrayController : IDisposable
         catch { /* ignore */ }
     }
 
-    /// <summary>
-    /// 退出应用。切回 UI 线程执行，规避托盘菜单回调的线程问题；
-    /// 退出前不 Dispose 图标——菜单仍打开时 Dispose 会与 UI 线程死锁，
-    /// 导致 Environment.Exit 到不了、进程退不掉。进程退出后系统会自动清理托盘图标。
-    /// </summary>
     private void ExitApp()
     {
         var dq = App.MainWindow?.DispatcherQueue;
         Log($"ExitApp: dq={(dq is null ? "null" : "ok")}");
         if (dq is null)
         {
-            Log("ExitApp: Environment.Exit(0) 直接");
             Environment.Exit(0);
             return;
         }
         bool ok = dq.TryEnqueue(() =>
         {
-            Log("ExitApp: 在 UI 线程执行 Stop+Exit");
             try { App.Hub.Stop(); } catch { /* ignore */ }
             Environment.Exit(0);
         });
-        Log($"ExitApp: TryEnqueue 返回 {ok}");
-        // 兜底：若无法投递到 UI 线程，直接退出
         if (!ok) Environment.Exit(0);
     }
 
@@ -103,7 +176,6 @@ public sealed class TrayController : IDisposable
     {
         _paused = !_paused;
         App.Hub.Pull.Paused = _paused;
-        _pauseItem.Text = _paused ? L.T("tray.resume") : L.T("tray.pause");
         UpdateStatus(_statusKey);
     }
 

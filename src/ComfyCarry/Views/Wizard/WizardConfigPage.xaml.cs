@@ -10,8 +10,6 @@ public sealed partial class WizardConfigPage : Page
 {
     private LocalizationService L => App.Hub.Locale;
     public ObservableCollection<ConfigChoiceVM> Choices { get; } = new();
-
-    // 当前驱动结果（用于 Choice_Click 续跑）
     private ConfigDriveResult? _drive;
 
     public WizardConfigPage()
@@ -26,34 +24,42 @@ public sealed partial class WizardConfigPage : Page
     {
         Lbl.Text = L.T("cloud.step.config");
         BackBtn.Content = L.T("common.back");
-        NextBtn.Content = L.T("common.next");
+        NextBtn.Content = L.T("common.finish");
         SaveBtn.Content = L.T("cloud.config.save");
         AuthorizeBtn.Content = L.T("cloud.config.authorize");
         OAuthHint.Text = L.T("cloud.config.oauthHint");
+        CreateTreeCheck.Content = L.T("cloud.config.createTree");
+        ChoiceHint.Text = L.T("cloud.config.chooseDrive");
     }
 
-    /// <summary>按当前选中类型切换两块面板（v-if）。</summary>
     private void ApplyMode()
     {
         var def = CloudTypeDefs.Get(WizardState.SelectedCloud);
+        Status.Text = "";
+        Status.Visibility = Visibility.Collapsed;
+        Busy.Visibility = Visibility.Collapsed;
+        ChoicePanel.Visibility = Visibility.Collapsed;
+        Choices.Clear();
+        NextBtn.IsEnabled = false;
+        CreateTreeCheck.IsChecked = WizardState.CreateTree;
+        CreateTreeCheck.Visibility = Visibility.Visible;
+
         if (def.RequiresOAuth)
         {
             OAuthPanel.Visibility = Visibility.Visible;
             ParamsPanel.Visibility = Visibility.Collapsed;
-            SaveBtn.Visibility = Visibility.Collapsed;
+            OAuthHint.Visibility = Visibility.Visible;
             AuthorizeBtn.Visibility = Visibility.Visible;
-            // OAuth 成功后才启用下一步
-            NextBtn.Visibility = WizardState.LastState?.IsDone == true ? Visibility.Visible : Visibility.Collapsed;
+            AuthorizeBtn.IsEnabled = true;
+            AuthorizeBtn.Content = L.T("cloud.config.authorize");
         }
         else
         {
             OAuthPanel.Visibility = Visibility.Collapsed;
             ParamsPanel.Visibility = Visibility.Visible;
             SaveBtn.Visibility = Visibility.Visible;
-            AuthorizeBtn.Visibility = Visibility.Collapsed;
+            SaveBtn.IsEnabled = true;
             BuildFields();
-            // 非参数类型若已写入 conf，直接显示下一步
-            NextBtn.Visibility = WizardState.LastState?.IsDone == true ? Visibility.Visible : Visibility.Collapsed;
         }
     }
 
@@ -69,11 +75,7 @@ public sealed partial class WizardConfigPage : Page
             FrameworkElement input;
             if (f.IsSecret)
             {
-                var box = new PasswordBox
-                {
-                    PlaceholderText = f.Placeholder ?? "",
-                    HorizontalAlignment = HorizontalAlignment.Stretch,
-                };
+                var box = new PasswordBox { PlaceholderText = f.Placeholder ?? "", HorizontalAlignment = HorizontalAlignment.Stretch };
                 if (WizardState.FieldValues.TryGetValue(f.Key, out var v)) box.Password = v;
                 var key = f.Key;
                 box.PasswordChanged += (s, e) => WizardState.FieldValues[key] = box.Password;
@@ -81,122 +83,251 @@ public sealed partial class WizardConfigPage : Page
             }
             else
             {
-                var box = new TextBox
-                {
-                    PlaceholderText = f.Placeholder ?? "",
-                    HorizontalAlignment = HorizontalAlignment.Stretch,
-                };
+                var box = new TextBox { PlaceholderText = f.Placeholder ?? "", HorizontalAlignment = HorizontalAlignment.Stretch };
                 if (WizardState.FieldValues.TryGetValue(f.Key, out var v)) box.Text = v;
                 var key = f.Key;
                 box.TextChanged += (s, e) => WizardState.FieldValues[key] = box.Text;
                 input = box;
             }
-            // Header 用统一 Header（TextBox/PasswordBox 都有 Header 属性，分别设置）
             if (input is TextBox tb) tb.Header = f.Label;
             else if (input is PasswordBox pb) pb.Header = f.Label;
             sp.Children.Add(input);
             if (f.Help is { Length: > 0 })
-            {
                 sp.Children.Add(new TextBlock { Text = f.Help, Opacity = 0.6, TextWrapping = TextWrapping.Wrap });
-            }
             FieldsPanel.Children.Add(sp);
         }
     }
 
-    private void Back_Click(object sender, RoutedEventArgs e) => this.Frame?.GoBack();
+    private void Back_Click(object sender, RoutedEventArgs e)
+    {
+        WizardState.LastState = null;
+        _drive = null;
+        try { if (File.Exists(WizardState.TempConfPath)) File.Delete(WizardState.TempConfPath); } catch { }
+        WizardState.TempConfPath = "";
+        this.Frame?.GoBack();
+    }
 
-    private void Next_Click(object sender, RoutedEventArgs e) => this.Frame?.Navigate(typeof(WizardTestPage));
+    private void Next_Click(object sender, RoutedEventArgs e)
+    {
+        this.Frame?.Navigate(typeof(CloudHomePage));
+    }
 
-    // ---------- 非参数类型：保存配置 ----------
+    // ---------- 非 OAuth: 保存配置 ----------
     private async void Save_Click(object sender, RoutedEventArgs e)
     {
+        SaveBtn.IsEnabled = false;
+        SetBusy(true, L.T("cloud.config.authenticating"));
         try
         {
-            SaveBtn.IsEnabled = false;
-            Busy.IsActive = true;
             var def = CloudTypeDefs.Get(WizardState.SelectedCloud);
             var opts = BuildOptions(def);
-            Status.Text = L.T("cloud.config.authorizing");
             var res = await App.Hub.Rclone.ConfigDriveAsync(
-                WizardState.TempConfPath, WizardState.RemoteName, def.RcloneType, opts, ProxyFromSettings());
+                WizardState.TempConfPath, WizardState.RemoteName, def.RcloneType, opts, ProxyFromSettings(),
+                autoAnswers: def.AutoAnswers);
             _drive = res;
-            ApplyDriveResult(res);
+            await HandleDriveResult(res);
         }
-        catch (Exception ex)
-        {
-            Status.Text = ex.Message;
-        }
-        finally { SaveBtn.IsEnabled = true; Busy.IsActive = false; }
+        catch (Exception ex) { SetError(ex.Message); }
+        finally { SetBusy(false); SaveBtn.IsEnabled = true; }
     }
 
-    // ---------- OAuth 类型：开始授权 ----------
+    // ---------- OAuth: 开始授权 ----------
     private async void Authorize_Click(object sender, RoutedEventArgs e)
     {
-        var def = CloudTypeDefs.Get(WizardState.SelectedCloud);
-        Busy.IsActive = true;
         AuthorizeBtn.IsEnabled = false;
-        Status.Text = L.T("cloud.config.browserOpening");
-
+        OAuthHint.Visibility = Visibility.Collapsed;
+        SetBusy(true, L.T("cloud.config.browserOpening"));
         try
         {
+            var def = CloudTypeDefs.Get(WizardState.SelectedCloud);
             var opts = BuildOptions(def);
             if (def.Provider is { Length: > 0 }) opts["provider"] = def.Provider;
-
-            var progress = new Progress<string>(OnDriveProgress);
+            var progress = new Progress<string>(tag =>
+            {
+                if (tag == "browser") SetStatus(L.T("cloud.config.waitingLogin"));
+            });
             var res = await App.Hub.Rclone.ConfigDriveAsync(
                 WizardState.TempConfPath, WizardState.RemoteName, def.RcloneType, opts,
-                ProxyFromSettings(), progress);
+                ProxyFromSettings(), progress, autoAnswers: def.AutoAnswers);
             _drive = res;
-            ApplyDriveResult(res);
+            await HandleDriveResult(res);
         }
-        catch (Exception ex)
+        catch (Exception ex) { SetError(ex.Message); }
+        finally { SetBusy(false); }
+    }
+
+    // ---------- 选择列表点击 ----------
+    private async void Choice_Click(object sender, RoutedEventArgs e)
+    {
+        if (_drive is not { Outcome: ConfigDriveOutcome.NeedChoice } drive) return;
+        if (sender is not RadioButton rb || rb.Tag is not string id) return;
+        SetBusy(true, L.T("cloud.config.authenticating"));
+        try
         {
-            Status.Text = ex.Message;
+            var def = CloudTypeDefs.Get(WizardState.SelectedCloud);
+            var next = await App.Hub.Rclone.ConfigDriveContinueAsync(
+                WizardState.TempConfPath, WizardState.RemoteName, def.RcloneType, drive, id,
+                ProxyFromSettings(), autoAnswers: def.AutoAnswers);
+            _drive = next;
+            await HandleDriveResult(next);
         }
-        finally { Busy.IsActive = false; AuthorizeBtn.IsEnabled = true; }
+        catch (Exception ex) { SetError(ex.Message); }
+        finally { SetBusy(false); }
     }
 
-    /// <summary>驱动器进度回调：区分"开浏览器"与"登录完成"两段文案。</summary>
-    private void OnDriveProgress(string tag)
+    // ---------- 统一结果处理 ----------
+    private async Task HandleDriveResult(ConfigDriveResult res)
     {
-        if (tag == "browser")
-            Status.Text = L.T("cloud.config.waitingLogin");
-        else if (tag == "login_done")
-            Status.Text = L.T("cloud.config.authorized");
-    }
-
-    /// <summary>把驱动结果落到 UI：done 显 Next、NeedChoice 填列表、Error 显文案。</summary>
-    private void ApplyDriveResult(ConfigDriveResult res)
-    {
-        // 用 LastState 携带 IsDone 标志供 ApplyMode 复用
         WizardState.LastState = res.Outcome == ConfigDriveOutcome.Done
-            ? new RcloneConfigState()   // State="" 即 IsDone
-            : new RcloneConfigState { State = res.State };
+            ? new RcloneConfigState() : new RcloneConfigState { State = res.State };
 
         switch (res.Outcome)
         {
             case ConfigDriveOutcome.Done:
-                ChoicesList.Visibility = Visibility.Collapsed;
-                Status.Text = L.T("cloud.config.authorized");
-                NextBtn.Visibility = Visibility.Visible;
+                ChoicePanel.Visibility = Visibility.Collapsed;
+                CreateTreeCheck.Visibility = Visibility.Collapsed;
+                // 自动验证 + 建目录 + 合并
+                await PostConfigFlow();
                 break;
             case ConfigDriveOutcome.NeedChoice:
-                Status.Text = L.T("cloud.config.chooseDrive");
+                OAuthHint.Visibility = Visibility.Collapsed;
+                AuthorizeBtn.Visibility = Visibility.Collapsed;
+                SaveBtn.Visibility = Visibility.Collapsed;
+                ChoiceHint.Text = L.T("cloud.config.chooseDrive");
                 FillChoices(res.Examples);
-                ChoicesList.Visibility = Visibility.Visible;
+                ChoicePanel.Visibility = Visibility.Visible;
+                SetBusy(false);
                 break;
-            default: // Error
-                ChoicesList.Visibility = Visibility.Collapsed;
-                Status.Text = LooksLikePortBusy(res.Message)
-                    ? L.T("cloud.config.portBusy")
-                    : (!string.IsNullOrEmpty(res.Message) ? res.Message : L.T("cloud.config.failed"));
+            default:
+                SetError(res.Message);
+                // 显示重试按钮
+                if (CloudTypeDefs.Get(WizardState.SelectedCloud).RequiresOAuth)
+                {
+                    AuthorizeBtn.Visibility = Visibility.Visible;
+                    AuthorizeBtn.Content = L.T("cloud.config.retry");
+                    AuthorizeBtn.IsEnabled = true;
+                }
+                else
+                {
+                    SaveBtn.Visibility = Visibility.Visible;
+                    SaveBtn.IsEnabled = true;
+                }
                 break;
         }
     }
 
-    private static bool LooksLikePortBusy(string? m)
-        => !string.IsNullOrEmpty(m) &&
-           (m.Contains("53682") || m.Contains("auth webserver") || m.Contains("forbidden by its access permissions"));
+    /// <summary>配置完成后的自动流程：验证连接 → 建目录 → 合并 conf</summary>
+    private async Task PostConfigFlow()
+    {
+        WizardState.CreateTree = CreateTreeCheck.IsChecked == true;
+        SetBusy(true, L.T("cloud.config.verifying"));
+
+        bool testOk = false;
+        string testMsg = "";
+        try
+        {
+            var (ok, msg) = await App.Hub.Rclone.LsdAsync(
+                WizardState.TempConfPath, WizardState.RemoteName, ProxyFromSettings());
+            testOk = ok;
+            testMsg = msg;
+        }
+        catch (Exception ex) { testMsg = ex.Message; }
+
+        bool treeOk = false;
+        if (testOk && WizardState.CreateTree)
+        {
+            try
+            {
+                int code = await App.Hub.Rclone.CreateStandardTreeAsync(
+                    WizardState.TempConfPath, WizardState.RemoteName, ProxyFromSettings());
+                treeOk = code == 0;
+            }
+            catch { }
+        }
+
+        // 合并到 app conf
+        MergeIntoAppConf();
+
+        SetBusy(false);
+
+        if (testOk)
+        {
+            var msg = L.T("cloud.config.verifyOk");
+            if (treeOk) msg += "\n" + L.T("cloud.config.treeOk");
+            SetStatus(msg);
+        }
+        else
+        {
+            SetStatus(L.T("cloud.config.verifyWarn") + "\n" + testMsg + "\n" + L.T("cloud.config.verifyWarnHint"));
+        }
+        NextBtn.IsEnabled = true;
+    }
+
+    private void MergeIntoAppConf()
+    {
+        try
+        {
+            if (!File.Exists(WizardState.TempConfPath)) return;
+            var tempText = File.ReadAllText(WizardState.TempConfPath);
+            var appConf = App.Hub.Paths.AppRcloneConf;
+            var appText = File.Exists(appConf) ? File.ReadAllText(appConf) : "";
+            var tempRemotes = ParseRemotes(tempText);
+            var appRemotes = ParseRemotes(appText);
+            foreach (var kv in tempRemotes) appRemotes[kv.Key] = kv.Value;
+            var sb = new System.Text.StringBuilder();
+            foreach (var kv in appRemotes)
+            {
+                sb.AppendLine($"[{kv.Key}]");
+                sb.AppendLine(kv.Value.TrimEnd('\r', '\n'));
+                sb.AppendLine();
+            }
+            File.WriteAllText(appConf, sb.ToString());
+        }
+        catch { }
+    }
+
+    private static Dictionary<string, string> ParseRemotes(string conf)
+    {
+        var result = new Dictionary<string, string>();
+        if (string.IsNullOrEmpty(conf)) return result;
+        var lines = conf.Split('\n');
+        string? curName = null;
+        var curBody = new System.Text.StringBuilder();
+        foreach (var ln in lines)
+        {
+            var t = ln.Trim();
+            if (t.StartsWith("[") && t.EndsWith("]"))
+            {
+                if (curName is not null) result[curName] = curBody.ToString();
+                curName = t.Substring(1, t.Length - 2);
+                curBody.Clear();
+            }
+            else if (curName is not null) curBody.AppendLine(ln);
+        }
+        if (curName is not null) result[curName] = curBody.ToString();
+        return result;
+    }
+
+    // ---------- UI 辅助 ----------
+    private void SetBusy(bool active, string? text = null)
+    {
+        Busy.IsActive = active;
+        Busy.Visibility = active ? Visibility.Visible : Visibility.Collapsed;
+        if (text is not null) SetStatus(text);
+    }
+
+    private void SetStatus(string text)
+    {
+        Status.Text = text;
+        Status.Visibility = string.IsNullOrEmpty(text) ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private void SetError(string text)
+    {
+        SetBusy(false);
+        ChoicePanel.Visibility = Visibility.Collapsed;
+        SetStatus(text);
+    }
 
     private void FillChoices(IReadOnlyList<RcloneExample> examples)
     {
@@ -207,28 +338,6 @@ public sealed partial class WizardConfigPage : Page
             var label = !string.IsNullOrEmpty(ex.Help) ? ex.Help : $"{L.T("cloud.config.option")} {i + 1}";
             Choices.Add(new ConfigChoiceVM { Id = ex.Value, Label = label });
         }
-    }
-
-    private async void Choice_Click(object sender, RoutedEventArgs e)
-    {
-        if (_drive is not { Outcome: ConfigDriveOutcome.NeedChoice } drive) return;
-        if (sender is not RadioButton rb || rb.Tag is not string id) return;
-        // id 即 Example.Value
-        var result = id;
-        Status.Text = L.T("cloud.config.authorizing");
-        Busy.IsActive = true;
-        try
-        {
-            var def = CloudTypeDefs.Get(WizardState.SelectedCloud);
-            var progress = new Progress<string>(OnDriveProgress);
-            var next = await App.Hub.Rclone.ConfigDriveContinueAsync(
-                WizardState.TempConfPath, WizardState.RemoteName, def.RcloneType, drive, result,
-                ProxyFromSettings(), progress);
-            _drive = next;
-            ApplyDriveResult(next);
-        }
-        catch (Exception ex) { Status.Text = ex.Message; }
-        finally { Busy.IsActive = false; }
     }
 
     private static Dictionary<string, string> BuildOptions(CloudTypeDef def)

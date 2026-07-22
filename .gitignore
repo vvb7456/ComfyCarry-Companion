@@ -4,3 +4,4 @@ publish/
 *.zip
 *.user
 .vs/
+src/ComfyCarry/Assets/rclone.exe

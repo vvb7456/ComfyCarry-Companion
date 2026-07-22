@@ -41,19 +41,20 @@ public sealed partial class ConnectDialog : ContentDialog
                 args.Cancel = true;
                 return;
             }
-            // 存实例
-            var inst = new PanelInstance
-            {
-                BaseUrl = url,
-                Password = pwd,
-                ApiKey = cr.ApiKey,
-                DavUrl = cr.DavUrl,
-                DavUser = cr.DavUser,
-                ComfyuiDir = cr.ComfyuiDir,
-                InstanceLabel = cr.InstanceLabel,
-                Label = string.IsNullOrEmpty(LabelBox.Text.Trim()) ? cr.InstanceLabel : LabelBox.Text.Trim(),
-                IsCurrent = true,
-            };
+            // 存实例（去重：同 URL 更新而非新建）
+            var normalizedUrl = url.TrimEnd('/');
+            var existing = App.Hub.Instances.All.FirstOrDefault(
+                i => i.BaseUrl.Trim().TrimEnd('/').Equals(normalizedUrl, StringComparison.OrdinalIgnoreCase));
+            var inst = existing ?? new PanelInstance();
+            inst.BaseUrl = url;
+            inst.Password = pwd;
+            inst.ApiKey = cr.ApiKey;
+            inst.DavUrl = cr.DavUrl;
+            inst.DavUser = cr.DavUser;
+            inst.ComfyuiDir = cr.ComfyuiDir;
+            inst.InstanceLabel = cr.InstanceLabel;
+            inst.Label = string.IsNullOrEmpty(LabelBox.Text.Trim()) ? cr.InstanceLabel : LabelBox.Text.Trim();
+            inst.IsCurrent = true;
             App.Hub.Instances.EnsureClientId(inst);
             App.Hub.Instances.Upsert(inst);
             // 确保 webdav remote

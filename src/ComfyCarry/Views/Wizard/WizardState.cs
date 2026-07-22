@@ -11,6 +11,7 @@ public static class WizardState
     public static RcloneConfigState? LastState { get; set; }
     public static string TempConfPath { get; set; } = "";
     public static bool TestedOk { get; set; }
+    public static bool CreateTree { get; set; } = true;
 
     public static void Reset()
     {
@@ -20,6 +21,7 @@ public static class WizardState
         LastState = null;
         TempConfPath = "";
         TestedOk = false;
+        CreateTree = true;
     }
 
     /// <summary>准备一个临时 conf 路径（在选类型页完成或命名页进入时调用）。</summary>

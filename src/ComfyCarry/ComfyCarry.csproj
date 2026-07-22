@@ -7,6 +7,7 @@
     <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
     <RootNamespace>ComfyCarry</RootNamespace>
     <AssemblyName>ComfyCarry</AssemblyName>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Platforms>x64</Platforms>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
@@ -28,6 +29,11 @@
   <PropertyGroup Condition="'$(Configuration)'=='Release'">
     <DebugType>none</DebugType>
     <DebugSymbols>false</DebugSymbols>
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>partial</TrimMode>
+    <SuppressTrimAnalysisWarnings>true</SuppressTrimAnalysisWarnings>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
   </PropertyGroup>
 
   <!-- Unpackaged EXE. EnableMsixTooling=false 防止非打包 debug/run 构建的 resources.pri 不匹配。
@@ -47,9 +53,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="Assets\rclone.exe">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+    <Content Include="Assets\rclone.exe" Link="rclone.exe" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\app.ico" Link="Assets\app.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\logos\*.png" CopyToOutputDirectory="PreserveNewest" />
     <None Update="app.manifest">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

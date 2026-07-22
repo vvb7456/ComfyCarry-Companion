@@ -3,47 +3,57 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:ComfyCarry.Views.Wizard">
-    <ScrollViewer Padding="24,24,24,24" VerticalScrollBarVisibility="Auto">
-        <StackPanel MaxWidth="720" Spacing="16" HorizontalAlignment="Left">
-            <TextBlock x:Name="Lbl" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+    <Grid RowDefinitions="*,Auto">
+        <ScrollViewer Grid.Row="0" Padding="40,32,40,16" VerticalScrollBarVisibility="Auto">
+            <StackPanel MaxWidth="640" Spacing="16">
+                <TextBlock x:Name="Lbl" Style="{ThemeResource SubtitleTextBlockStyle}"/>
 
-            <!-- 非参数面板（OAuth 类型） -->
-            <Border x:Name="OAuthPanel"
-                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                    BorderThickness="1" CornerRadius="8" Padding="20"
-                    Visibility="Collapsed">
-                <StackPanel Spacing="12">
+                <!-- OAuth 面板 -->
+                <StackPanel x:Name="OAuthPanel" Spacing="12" Visibility="Collapsed">
                     <TextBlock x:Name="OAuthHint" TextWrapping="Wrap" Opacity="0.8"/>
-                    <ProgressRing x:Name="Busy" IsActive="False" Width="40" Height="40"/>
-                    <TextBlock x:Name="Status" TextWrapping="Wrap"/>
-                    <ListView x:Name="ChoicesList" Visibility="Collapsed" SelectionMode="None" IsItemClickEnabled="False">
+                    <Button x:Name="AuthorizeBtn" Click="Authorize_Click" Style="{ThemeResource AccentButtonStyle}"/>
+                </StackPanel>
+
+                <!-- 参数面板 -->
+                <StackPanel x:Name="ParamsPanel" Spacing="12" Visibility="Collapsed">
+                    <StackPanel x:Name="FieldsPanel" Spacing="12"/>
+                    <Button x:Name="SaveBtn" Click="Save_Click" Style="{ThemeResource AccentButtonStyle}" Visibility="Collapsed"/>
+                </StackPanel>
+
+                <!-- 选项列表（NeedChoice 时显示） -->
+                <StackPanel x:Name="ChoicePanel" Spacing="8" Visibility="Collapsed">
+                    <TextBlock x:Name="ChoiceHint" TextWrapping="Wrap"/>
+                    <ListView x:Name="ChoicesList" SelectionMode="None" IsItemClickEnabled="False">
                         <ListView.ItemTemplate>
                             <DataTemplate x:DataType="local:ConfigChoiceVM">
                                 <RadioButton Content="{x:Bind Label}" Tag="{x:Bind Id}" Click="Choice_Click"/>
                             </DataTemplate>
                         </ListView.ItemTemplate>
                     </ListView>
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <Button x:Name="AuthorizeBtn" Click="Authorize_Click" Style="{ThemeResource AccentButtonStyle}"/>
-                    </StackPanel>
                 </StackPanel>
-            </Border>
 
-            <!-- 参数面板（非 OAuth 类型） -->
-            <Border x:Name="ParamsPanel"
-                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                    BorderThickness="1" CornerRadius="8" Padding="20"
-                    Visibility="Collapsed">
-                <StackPanel x:Name="FieldsPanel" Spacing="12"/>
-            </Border>
+                <!-- 建目录 checkbox -->
+                <CheckBox x:Name="CreateTreeCheck" IsChecked="True"/>
 
-            <StackPanel Orientation="Horizontal" Spacing="8">
-                <Button x:Name="BackBtn" Click="Back_Click"/>
-                <Button x:Name="SaveBtn" Click="Save_Click" Style="{ThemeResource AccentButtonStyle}" Visibility="Collapsed"/>
-                <Button x:Name="NextBtn" Click="Next_Click" Style="{ThemeResource AccentButtonStyle}" Visibility="Collapsed"/>
+                <!-- 状态区 -->
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                    <ProgressRing x:Name="Busy" IsActive="False" Width="24" Height="24" Visibility="Collapsed"/>
+                    <TextBlock x:Name="Status" TextWrapping="Wrap" VerticalAlignment="Center" Visibility="Collapsed"/>
+                </StackPanel>
             </StackPanel>
-        </StackPanel>
-    </ScrollViewer>
+        </ScrollViewer>
+
+        <!-- 固定底栏 -->
+        <Border Grid.Row="1" Background="{ThemeResource LayerFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="0,1,0,0" Padding="40,12">
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+                <Button x:Name="BackBtn" Grid.Column="1" Click="Back_Click"
+                        Content="上一步" Padding="20,8" MinWidth="100"/>
+                <Button x:Name="NextBtn" Grid.Column="2" Click="Next_Click"
+                        Style="{ThemeResource AccentButtonStyle}" Padding="20,8" MinWidth="120"
+                        Content="完成" IsEnabled="False"/>
+            </Grid>
+        </Border>
+    </Grid>
 </Page>

@@ -10,7 +10,7 @@
                 Background="Transparent"
                 HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
-                <FontIcon Glyph="&#xE753;" FontSize="16"/>
+                <Image Source="Assets/app.ico" Width="16" Height="16"/>
                 <TextBlock x:Name="AppTitleText" Text="ComfyCarry Companion"
                            Style="{ThemeResource CaptionTextBlockStyle}"
                            Margin="8,0,0,0" VerticalAlignment="Center"/>

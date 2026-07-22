@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media.Imaging;
 using ComfyCarry.Services;
 using ComfyCarry.Views;
 
@@ -24,7 +25,27 @@ public sealed partial class WizardTypePage : Page
         {
             var def = CloudTypeDefs.All[i];
             if (def.Type == WizardState.SelectedCloud) defaultIndex = i;
-            var rb = new RadioButton { Content = def.DisplayName, Tag = def };
+
+            var sp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
+            // Logo
+            if (!string.IsNullOrEmpty(def.LogoPath))
+            {
+                var logoPath = Path.Combine(AppContext.BaseDirectory, def.LogoPath);
+                if (File.Exists(logoPath))
+                {
+                    var img = new Image
+                    {
+                        Source = new BitmapImage(new Uri(logoPath)),
+                        Width = 20,
+                        Height = 20,
+                        VerticalAlignment = VerticalAlignment.Center,
+                    };
+                    sp.Children.Add(img);
+                }
+            }
+            sp.Children.Add(new TextBlock { Text = def.DisplayName, VerticalAlignment = VerticalAlignment.Center });
+
+            var rb = new RadioButton { Content = sp, Tag = def };
             TypeRadios.Items.Add(rb);
         }
         // 手动 new 的 RadioButton 不会自动同步 RadioButtons.SelectedItem；

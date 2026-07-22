@@ -14,7 +14,9 @@ public sealed class HeartbeatService
     private readonly SettingsService _settings;
     private Timer? _timer;
     private static readonly string Hostname = Environment.MachineName;
-    private const string AppVer = "1.0.0";
+    private static readonly string AppVer =
+        System.Reflection.Assembly.GetExecutingAssembly().GetName().Version is { } v
+            ? $"{v.Major}.{v.Minor}.{v.Build}" : "1.0.0";
 
     public string LastStatus { get; private set; } = "idle";
 

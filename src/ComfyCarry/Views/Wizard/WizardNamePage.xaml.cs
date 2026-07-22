@@ -14,6 +14,12 @@ public sealed partial class WizardNamePage : Page
     {
         this.InitializeComponent();
         Localize();
+        // 预填充：若用户未手动输入，使用云类型的默认名称
+        if (string.IsNullOrEmpty(WizardState.RemoteName))
+        {
+            var def = Models.CloudTypeDefs.Get(WizardState.SelectedCloud);
+            WizardState.RemoteName = def.DefaultRemoteName;
+        }
         NameBox.Text = WizardState.RemoteName;
         UpdateValidity();
     }

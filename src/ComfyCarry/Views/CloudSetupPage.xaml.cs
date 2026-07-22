@@ -16,9 +16,6 @@ public sealed partial class CloudSetupPage : Page
         (typeof(WizardTypePage),   "cloud.step.type"),
         (typeof(WizardNamePage),   "cloud.step.name"),
         (typeof(WizardConfigPage), "cloud.step.config"),
-        (typeof(WizardTestPage),   "cloud.step.test"),
-        (typeof(WizardTreePage),   "cloud.step.tree"),
-        (typeof(WizardExportPage), "cloud.step.export"),
     };
 
     public CloudSetupPage()

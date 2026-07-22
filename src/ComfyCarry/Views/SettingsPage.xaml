@@ -52,6 +52,7 @@
             <StackPanel Spacing="6">
                 <ToggleSwitch x:Name="AutoStartSwitch" Header="开机自启" Toggled="AutoStart_Toggled"/>
                 <ToggleSwitch x:Name="CloseToTraySwitch" Header="关闭窗口时最小化到托盘" Toggled="CloseToTray_Toggled"/>
+                <ToggleSwitch x:Name="MinimizeToTraySwitch" Header="最小化时隐藏到托盘" Toggled="MinimizeToTray_Toggled"/>
             </StackPanel>
 
             <!-- 网络代理 -->

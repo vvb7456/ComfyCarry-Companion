@@ -16,8 +16,7 @@ public sealed partial class MainWindow : Window
         SetupTitleBar();
         ApplyTheme();
         ApplyLanguage();
-        Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First();
-        ContentFrame.Navigate(typeof(CloudSetupPage));
+        RestoreLastTab();
         App.Hub.Settings.Changed += () => DispatcherQueue.TryEnqueue(() => { ApplyTheme(); ApplyLanguage(); });
         App.Hub.Instances.Changed += () => DispatcherQueue.TryEnqueue(() => { });
 
@@ -25,7 +24,10 @@ public sealed partial class MainWindow : Window
         try
         {
             if (AppWindow is not null)
+            {
                 AppWindow.Closing += OnWindowClosing;
+                AppWindow.Changed += OnWindowChanged;
+            }
         }
         catch { /* ignore */ }
     }
@@ -36,7 +38,6 @@ public sealed partial class MainWindow : Window
         {
             this.ExtendsContentIntoTitleBar = true;
             this.SetTitleBar(AppTitleBar);
-            // 系统三键背景透明，与标题栏融合
             if (AppWindow?.TitleBar is { } tb)
             {
                 tb.ButtonBackgroundColor = Microsoft.UI.Colors.Transparent;
@@ -44,6 +45,34 @@ public sealed partial class MainWindow : Window
             }
         }
         catch { /* ignore */ }
+    }
+
+    /// <summary>恢复上次选中的 Tab（SPEC §3.2 设置中 LastTab）。</summary>
+    private void RestoreLastTab()
+    {
+        var tag = App.Hub.Settings.Data.LastTab;
+        var items = Nav.MenuItems.OfType<NavigationViewItem>().ToList();
+        var target = items.FirstOrDefault(i => i.Tag is string t && t == tag) ?? items.FirstOrDefault();
+        if (target is not null)
+        {
+            Nav.SelectedItem = target;
+            if (target.Tag is string t2)
+            {
+                Type page = t2 switch
+                {
+                    "cloud" => typeof(CloudSetupPage),
+                    "pull" => typeof(PullPage),
+                    "settings" => typeof(SettingsPage),
+                    _ => typeof(CloudSetupPage),
+                };
+                ContentFrame.Navigate(page);
+            }
+        }
+        else
+        {
+            Nav.SelectedItem = items.FirstOrDefault();
+            ContentFrame.Navigate(typeof(CloudSetupPage));
+        }
     }
 
     private void OnWindowClosing(Microsoft.UI.Windowing.AppWindow sender, Microsoft.UI.Windowing.AppWindowClosingEventArgs args)
@@ -55,9 +84,30 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    /// <summary>最小化到托盘（SPEC §3.2）。</summary>
+    private void OnWindowChanged(Microsoft.UI.Windowing.AppWindow sender, Microsoft.UI.Windowing.AppWindowChangedEventArgs args)
+    {
+        if (args.DidPresenterChange && App.Hub.Settings.Data.MinimizeToTray && App.Hub.Tray is not null)
+        {
+            if (sender.Presenter is Microsoft.UI.Windowing.OverlappedPresenter { State: Microsoft.UI.Windowing.OverlappedPresenterState.Minimized })
+            {
+                sender.Hide();
+            }
+        }
+    }
+
     public void RestoreAndActivate()
     {
-        try { AppWindow?.Show(); } catch { }
+        try
+        {
+            AppWindow?.Show();
+            if (AppWindow?.Presenter is Microsoft.UI.Windowing.OverlappedPresenter op
+                && op.State == Microsoft.UI.Windowing.OverlappedPresenterState.Minimized)
+            {
+                op.Restore();
+            }
+        }
+        catch { }
         this.Activate();
     }
 
@@ -153,6 +203,46 @@ public sealed partial class MainWindow : Window
             AppTheme.Dark => ElementTheme.Dark,
             _ => ElementTheme.Default,
         };
+        ApplyTitleBarColors(t);
+    }
+
+    /// <summary>根据主题设置标题栏按钮前景色，确保浅色/深色模式下三键可见。</summary>
+    private void ApplyTitleBarColors(AppTheme theme)
+    {
+        try
+        {
+            if (AppWindow?.TitleBar is not { } tb) return;
+            tb.ButtonBackgroundColor = Microsoft.UI.Colors.Transparent;
+            tb.ButtonInactiveBackgroundColor = Microsoft.UI.Colors.Transparent;
+
+            bool isDark = theme switch
+            {
+                AppTheme.Dark => true,
+                AppTheme.Light => false,
+                _ => IsSystemDark(),
+            };
+
+            var fg = isDark
+                ? Windows.UI.Color.FromArgb(255, 255, 255, 255)
+                : Windows.UI.Color.FromArgb(255, 0, 0, 0);
+            tb.ButtonForegroundColor = fg;
+            tb.ButtonInactiveForegroundColor = fg;
+            tb.ButtonHoverForegroundColor = fg;
+            tb.ButtonPressedForegroundColor = fg;
+        }
+        catch { /* ignore */ }
+    }
+
+    private static bool IsSystemDark()
+    {
+        try
+        {
+            var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(
+                @"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+            var val = key?.GetValue("AppsUseLightTheme");
+            return val is int i && i == 0;
+        }
+        catch { return true; }
     }
 
     public ElementTheme RootTheme

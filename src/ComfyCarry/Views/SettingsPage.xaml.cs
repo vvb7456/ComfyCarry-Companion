@@ -33,6 +33,7 @@ public sealed partial class SettingsPage : Page
         ThemeDark.Content = L.T("settings.theme.dark");
         AutoStartSwitch.Header = L.T("settings.autostart");
         CloseToTraySwitch.Header = L.T("settings.closeToTray");
+        MinimizeToTraySwitch.Header = L.T("settings.minimizeToTray");
         ProxyHeader.Text = L.T("settings.proxy");
         ProxyHint.Text = L.T("settings.proxy.hint");
         AboutHeader.Text = L.T("settings.about");
@@ -51,6 +52,7 @@ public sealed partial class SettingsPage : Page
                 rb.IsChecked = (rb.Tag as string) == s.Theme.ToString();
             AutoStartSwitch.IsOn = s.StartWithWindows;
             CloseToTraySwitch.IsOn = s.CloseToTray;
+            MinimizeToTraySwitch.IsOn = s.MinimizeToTray;
             ProxyBox.Text = s.Proxy ?? "";
         }
         finally { _loading = false; }
@@ -93,6 +95,11 @@ public sealed partial class SettingsPage : Page
     private void CloseToTray_Toggled(object sender, RoutedEventArgs e)
     {
         App.Hub.Settings.Update(s => s.CloseToTray = CloseToTraySwitch.IsOn);
+    }
+
+    private void MinimizeToTray_Toggled(object sender, RoutedEventArgs e)
+    {
+        App.Hub.Settings.Update(s => s.MinimizeToTray = MinimizeToTraySwitch.IsOn);
     }
 
     private void Proxy_TextChanged(object sender, TextChangedEventArgs e)
