@@ -49,7 +49,7 @@ jobs:
             "双击 ComfyCarry.exe 即可运行。",
             "应用目录下的其余文件为运行依赖，请勿删除。",
             "",
-            "如需配置云盘，进入「云存储配置」按向导操作即可。"
+            "如需配置云盘，进入「生成存储配置」按向导操作即可。"
           ) -join "`r`n"
           [System.IO.File]::WriteAllText("publish/使用说明.txt", $content, [System.Text.UTF8Encoding]::new($true))
 

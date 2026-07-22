@@ -25,15 +25,10 @@
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
   </PropertyGroup>
 
-  <!-- Release：去掉 pdb，进一步精简产物 -->
+  <!-- Release：去掉 pdb，精简产物。Trim/SingleFile 仅通过命令行 /p: 传入，不在此设置（WinUI 3 不完全支持 trim） -->
   <PropertyGroup Condition="'$(Configuration)'=='Release'">
     <DebugType>none</DebugType>
     <DebugSymbols>false</DebugSymbols>
-    <PublishTrimmed>true</PublishTrimmed>
-    <TrimMode>partial</TrimMode>
-    <SuppressTrimAnalysisWarnings>true</SuppressTrimAnalysisWarnings>
-    <PublishSingleFile>true</PublishSingleFile>
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
   </PropertyGroup>
 
   <!-- Unpackaged EXE. EnableMsixTooling=false 防止非打包 debug/run 构建的 resources.pri 不匹配。
