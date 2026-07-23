@@ -21,8 +21,7 @@
     <AssemblyVersion>0.1.0.0</AssemblyVersion>
     <DefaultLanguage>zh-CN</DefaultLanguage>
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
-    <!-- 仅保留 en 卫星资源，精简产物体积 -->
-    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!-- 保留所有卫星资源（含 .mui 本地化文件，WinUI XAML 运行时必需） -->
   </PropertyGroup>
 
   <!-- Release：去掉 pdb，精简产物。Trim/SingleFile 仅通过命令行 /p: 传入，不在此设置（WinUI 3 不完全支持 trim） -->
