@@ -70,8 +70,7 @@ jobs:
           Copy-Item publish-launcher/ComfyCarry.exe publish/ComfyCarry.exe
           Copy-Item publish-app/* publish/app/ -Recurse -Force
           $app = "publish/app"
-          $keepDirs = @("en","en-GB","en-us","zh-CN","zh-TW","Microsoft.UI.Xaml","Assets")
-          Get-ChildItem $app -Directory | Where-Object { $_.Name -notin $keepDirs } | Remove-Item -Recurse -Force
+          # Strip ML/AI/Widgets + workloads (BUT KEEP Bootstrap.Net.dll and locale dirs)
           $rmFiles = @(
             "onnxruntime.dll","DirectML.dll","Microsoft.ML.OnnxRuntime.dll",
             "Microsoft.Windows.AI.*","Microsoft.Windows.Widgets.*","Microsoft.Windows.Workloads.*",
