@@ -47,12 +47,34 @@ jobs:
           $upx = (Get-ChildItem upx-extract -Recurse -Filter upx.exe | Select-Object -First 1).FullName
           & $upx --best --lzma publish-app/rclone.exe
 
-      - name: Assemble package
+      - name: Assemble and strip
         shell: pwsh
         run: |
           New-Item -ItemType Directory publish -Force | Out-Null
           Copy-Item publish-launcher/ComfyCarry.exe publish/ComfyCarry.exe
           Copy-Item publish-app publish/app -Recurse -Force
+          $app = "publish/app"
+          Get-ChildItem $app -Directory | Where-Object { $_.Name -notmatch '^(en|zh|Microsoft|Assets)' } | Remove-Item -Recurse -Force
+          $rmFiles = @(
+            "onnxruntime.dll","DirectML.dll","Microsoft.ML.OnnxRuntime.dll",
+            "Microsoft.Windows.AI.*","Microsoft.Windows.Widgets.*","Microsoft.Windows.Workloads.*",
+            "NPUDetect.dll","PushNotificationsLongRunningTask.ProxyStub.dll",
+            "SessionHandleIPCProxyStub.dll","RestartAgent.exe","workloads.*.json"
+          )
+          foreach ($pat in $rmFiles) { Get-ChildItem $app -Filter $pat | Remove-Item -Force -ErrorAction SilentlyContinue }
+          $debugFiles = @("mscordaccore*.dll","mscordbi.dll","Microsoft.DiaSymReader.Native.amd64.dll")
+          foreach ($pat in $debugFiles) { Get-ChildItem $app -Filter $pat | Remove-Item -Force -ErrorAction SilentlyContinue }
+          $unused = @(
+            "System.Private.Xml.dll","System.Private.DataContractSerialization.dll",
+            "System.Data.Common.dll","Microsoft.VisualBasic.Core.dll",
+            "System.Text.Encoding.CodePages.dll","System.Net.HttpListener.dll",
+            "System.Transactions.Local.dll","System.Net.WebSockets.dll",
+            "System.Net.Mail.dll","System.Net.Quic.dll","System.Formats.Tar.dll",
+            "System.Threading.Tasks.Dataflow.dll","System.Numerics.Tensors.dll",
+            "System.Formats.Asn1.dll","System.Net.Ping.dll","System.IO.Pipes.dll",
+            "System.Web.HttpUtility.dll","System.Runtime.Caching.dll"
+          )
+          foreach ($f in $unused) { Remove-Item (Join-Path $app $f) -Force -ErrorAction SilentlyContinue }
 
       - name: Zip package
         shell: pwsh
