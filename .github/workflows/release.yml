@@ -106,5 +106,4 @@ jobs:
           name: ${{ steps.ver.outputs.version }}
           generate_release_notes: true
           prerelease: ${{ contains(steps.ver.outputs.version, '-') }}
-          files: "ComfyCarry-${{ steps.ver.outputs.version }}-windows-x64.zip"
-          fail_on_unmatched_files: true
+          files: "ComfyCarry-*-windows-x64.zip"
