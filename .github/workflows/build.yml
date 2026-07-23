@@ -60,14 +60,13 @@ jobs:
           $rmFiles = @(
             "onnxruntime.dll","DirectML.dll","Microsoft.ML.OnnxRuntime.dll",
             "Microsoft.Windows.AI.*","Microsoft.Windows.Widgets.*","Microsoft.Windows.Workloads.*",
-            "NPUDetect.dll","Microsoft.WindowsAppRuntime.Bootstrap.Net.dll",
+            "NPUDetect.dll",
             "PushNotificationsLongRunningTask.ProxyStub.dll","SessionHandleIPCProxyStub.dll",
             "RestartAgent.exe","workloads.*.json"
           )
           foreach ($pat in $rmFiles) { Get-ChildItem $app -Filter $pat | Remove-Item -Force -ErrorAction SilentlyContinue }
           $debugFiles = @("mscordaccore*.dll","mscordbi.dll","Microsoft.DiaSymReader.Native.amd64.dll")
           foreach ($pat in $debugFiles) { Get-ChildItem $app -Filter $pat | Remove-Item -Force -ErrorAction SilentlyContinue }
-          Get-ChildItem $app -Filter *.winmd -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
           $unused = @(
             "System.Private.Xml.dll","System.Private.DataContractSerialization.dll",
             "System.Data.Common.dll","Microsoft.VisualBasic.Core.dll",
