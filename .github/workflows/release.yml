@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Version tag (e.g. v0.1.0-beta)'
+        description: 'Version tag (e.g. v0.2.0)'
         required: true
 
 jobs:

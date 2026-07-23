@@ -17,8 +17,8 @@ public sealed class HeartbeatService
     private Timer? _timer;
     private static readonly string Hostname = Environment.MachineName;
     private static readonly string AppVer =
-        typeof(HeartbeatService).Assembly.GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>()
-            ?.InformationalVersion ?? "0.1.0-beta";
+        typeof(HeartbeatService).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion ?? "0.0.0";
 
     public string LastStatus { get; private set; } = "idle";
 

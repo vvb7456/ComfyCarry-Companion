@@ -34,7 +34,7 @@ public sealed class HeartbeatRequest
     public string Hostname { get; set; } = "";
 
     [JsonPropertyName("app_version")]
-    public string AppVersion { get; set; } = "0.1.0-beta";
+    public string AppVersion { get; set; } = "";
 
     [JsonPropertyName("status")]
     public string Status { get; set; } = "idle";

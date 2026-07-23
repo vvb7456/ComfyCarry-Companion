@@ -16,9 +16,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
     <NoWarn>$(NoWarn);CA1416</NoWarn>
-    <Version>0.1.0-beta</Version>
-    <FileVersion>0.1.0.0</FileVersion>
-    <AssemblyVersion>0.1.0.0</AssemblyVersion>
     <DefaultLanguage>zh-CN</DefaultLanguage>
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
     <!-- 保留所有卫星资源（含 .mui 本地化文件，WinUI XAML 运行时必需） -->

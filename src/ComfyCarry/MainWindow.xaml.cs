@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using ComfyCarry.Views;
+using ComfyCarry.Services;
 
 namespace ComfyCarry;
 
@@ -9,6 +10,7 @@ public sealed partial class MainWindow : Window
 {
     public Frame Frame => ContentFrame;
     public LocalizationService L => App.Hub.Locale;
+    public string PlacementFile => App.Hub.Paths.PlacementFile;
 
     public MainWindow()
     {
@@ -110,10 +112,6 @@ public sealed partial class MainWindow : Window
         catch { }
         this.Activate();
     }
-
-    private static readonly string PlacementFile = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "ComfyCarry", "placement.json");
 
     [DllImport("user32.dll")]
     private static extern uint GetDpiForWindow(IntPtr hwnd);
