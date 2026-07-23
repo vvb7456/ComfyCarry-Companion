@@ -24,13 +24,12 @@ public sealed class AppPaths
 
     public AppPaths()
     {
-        var baseDir = AppContext.BaseDirectory;
+        var baseDir = AppContext.BaseDirectory; // always ends with \
         // 发布模式：主程序在 app/ 子目录，数据放上一级（launcher 旁边）
-        var appSubdir = Path.Combine("app", "");
-        if (baseDir.EndsWith(appSubdir, StringComparison.OrdinalIgnoreCase))
-            Root = Path.GetFullPath(Path.Combine(baseDir, ".."));
-        else
-            Root = baseDir;
+        var dirName = Path.GetFileName(Path.TrimEndingDirectorySeparator(baseDir));
+        Root = string.Equals(dirName, "app", StringComparison.OrdinalIgnoreCase)
+            ? Path.GetFullPath(Path.Combine(baseDir, ".."))
+            : baseDir;
 
         DataDir = Path.Combine(Root, "data");
         RcloneExePath = Path.Combine(AppContext.BaseDirectory, "rclone.exe");
