@@ -33,11 +33,12 @@ public sealed class ServiceHub : IDisposable
         Instances = new InstanceStore(Paths, Secrets);
         Rclone = new RcloneService(Paths, Settings);
         Api = new CompanionApiClient(Instances);
+        Api.OnReconnect = (inst, ct) => Rclone.EnsureInstanceWebdavRemoteAsync(inst, ct);
         Jobs = new JobReporter(Api);
         RuleStore = new RuleStore(Paths);
         Rules = new RuleEngine(RuleStore, Instances, Jobs);
         Heartbeat = new HeartbeatService(Api, Instances, Rules, RuleStore, Settings);
-        Pull = new PullEngine(Rclone, Rules, RuleStore, Jobs, Instances, Paths, Settings, _appCts.Token);
+        Pull = new PullEngine(Rclone, Rules, RuleStore, Jobs, Instances, Paths, Settings, Locale, _appCts.Token);
     }
 
     public void Start()
@@ -61,9 +62,9 @@ public sealed class ServiceHub : IDisposable
     {
         try
         {
+            _appCts.Cancel();
             Pull.Stop();
             Heartbeat.Stop();
-            _appCts.Cancel();
         }
         catch (Exception ex)
         {

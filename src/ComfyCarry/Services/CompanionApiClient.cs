@@ -19,6 +19,9 @@ public sealed class CompanionApiClient : IDisposable
         DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
     };
 
+    /// <summary>401 重连后需要刷新 webdav remote 时触发。</summary>
+    public Func<PanelInstance, CancellationToken, Task>? OnReconnect { get; set; }
+
     public CompanionApiClient(InstanceStore instances)
     {
         _instances = instances;
@@ -98,11 +101,21 @@ public sealed class CompanionApiClient : IDisposable
             var resp = await _http.SendAsync(req, ct);
             if (resp.StatusCode != HttpStatusCode.Unauthorized) return resp;
             resp.Dispose();
-            // 401 → 用密码重新 connect 刷新 api_key
+            // 401 → 用密码重新 connect 刷新 api_key + dav_url 等
             var cr = await ConnectAsync(inst.BaseUrl, inst.Password, ct);
             if (!cr.Ok || string.IsNullOrEmpty(cr.ApiKey)) return new HttpResponseMessage(HttpStatusCode.Unauthorized);
-            inst.ApiKey = cr.ApiKey;
+            _instances.UpdateCurrent(i =>
+            {
+                i.ApiKey = cr.ApiKey;
+                i.DavUrl = cr.DavUrl;
+                i.DavUser = cr.DavUser;
+                i.ComfyuiDir = cr.ComfyuiDir;
+            });
             _instances.Save();
+            if (OnReconnect is not null)
+            {
+                try { await OnReconnect(inst, ct); } catch { /* best effort */ }
+            }
         }
         return new HttpResponseMessage(HttpStatusCode.Unauthorized);
     }

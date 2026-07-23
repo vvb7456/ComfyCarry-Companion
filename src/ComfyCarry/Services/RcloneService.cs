@@ -462,8 +462,6 @@ public sealed class RcloneService
             "--low-level-retries", "5",
         };
         args.AddRange(BuildFilterArgs(rule));
-        // 远端只读列举（WebDAV），不检查本地 mtime 差异以外的东西
-        args.Add("--no-traverse");
         // 文件稳定延迟：跳过最近修改的文件，防止拉取写入中的不完整文件
         var minAge = _settings.Data.MinAgeSec;
         if (minAge > 0)
@@ -473,7 +471,7 @@ public sealed class RcloneService
         }
 
         Directory.CreateDirectory(dst);
-        return await RunStreamingAsync(args, null, onLog, ct);
+        return await RunStreamingAsync(args, _settings.Data.Proxy, onLog, ct);
     }
 
     private static List<string> BuildFilterArgs(PullRule rule)
@@ -481,23 +479,37 @@ public sealed class RcloneService
         var args = new List<string>
         {
             "--filter", "- .*/**",
+            "--filter", "- _output_images_will_be_put_here",
         };
-        switch (rule.Content)
+        if (rule.Subdirs)
         {
-            case "images":
-                args.Add("--filter"); args.Add("+ *.{png,jpg,jpeg,webp,gif,bmp,tiff,tif}");
-                break;
-            case "videos":
-                args.Add("--filter"); args.Add("+ *.{mp4,mov,webm,mkv,avi}");
-                break;
-            // "all": 不加 include，同步除隐藏目录外的所有文件
+            switch (rule.Content)
+            {
+                case "images":
+                    args.Add("--filter"); args.Add("+ *.{png,jpg,jpeg,webp,gif,bmp,tiff,tif}");
+                    args.Add("--filter"); args.Add("+ **/*.{png,jpg,jpeg,webp,gif,bmp,tiff,tif}");
+                    break;
+                case "videos":
+                    args.Add("--filter"); args.Add("+ *.{mp4,mov,webm,mkv,avi}");
+                    args.Add("--filter"); args.Add("+ **/*.{mp4,mov,webm,mkv,avi}");
+                    break;
+            }
         }
-        args.Add("--filter"); args.Add("- *");
-        if (!rule.Subdirs)
+        else
         {
+            switch (rule.Content)
+            {
+                case "images":
+                    args.Add("--filter"); args.Add("+ *.{png,jpg,jpeg,webp,gif,bmp,tiff,tif}");
+                    break;
+                case "videos":
+                    args.Add("--filter"); args.Add("+ *.{mp4,mov,webm,mkv,avi}");
+                    break;
+            }
             args.Add("--max-depth");
             args.Add("1");
         }
+        args.Add("--filter"); args.Add("- *");
         return args;
     }
 
@@ -594,6 +606,26 @@ public sealed class RcloneService
             try { if (!p.HasExited) p.Kill(entireProcessTree: true); } catch { /* ignore */ }
         });
         // rclone --use-json-log 输出到 stdout，逐行读
+        // 用 Task.WhenAny 防止孙进程持有管道导致 ReadLineAsync 永久阻塞
+        var readTask = ReadAllLinesAsync(p, onLog, ct);
+        var exitTask = p.WaitForExitAsync(ct);
+        await Task.WhenAny(readTask, exitTask);
+        // 如果进程先退出但读未完成，再等一会
+        if (p.HasExited && !readTask.IsCompleted)
+        {
+            await Task.WhenAny(readTask, Task.Delay(3000, CancellationToken.None));
+        }
+        ct.ThrowIfCancellationRequested();
+        if (!p.HasExited)
+        {
+            try { p.Kill(entireProcessTree: true); } catch { /* ignore */ }
+            await p.WaitForExitAsync(CancellationToken.None);
+        }
+        return p.ExitCode;
+    }
+
+    private async Task ReadAllLinesAsync(Process p, Func<RcloneLogEntry, Task> onLog, CancellationToken ct)
+    {
         while (!p.StandardOutput.EndOfStream)
         {
             ct.ThrowIfCancellationRequested();
@@ -602,8 +634,6 @@ public sealed class RcloneService
             var entry = TryParseLog(line);
             if (entry is not null) await onLog(entry);
         }
-        await p.WaitForExitAsync(ct);
-        return p.ExitCode;
     }
 
     private ProcessStartInfo BuildPsi(IReadOnlyList<string> args, string? proxy)

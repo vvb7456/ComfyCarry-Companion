@@ -23,6 +23,7 @@ public sealed class AppSettings
 public sealed class SettingsService
 {
     private readonly AppPaths _paths;
+    private readonly object _lock = new();
     private AppSettings _data = new();
     private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };
 
@@ -30,7 +31,7 @@ public sealed class SettingsService
 
     public SettingsService(AppPaths paths) => _paths = paths;
 
-    public AppSettings Data => _data;
+    public AppSettings Data { get { lock (_lock) return _data; } }
 
     public void Load()
     {
@@ -38,7 +39,8 @@ public sealed class SettingsService
         {
             if (!File.Exists(_paths.SettingsFile)) return;
             var json = File.ReadAllText(_paths.SettingsFile);
-            _data = JsonSerializer.Deserialize<AppSettings>(json, JsonOpts) ?? new AppSettings();
+            var data = JsonSerializer.Deserialize<AppSettings>(json, JsonOpts) ?? new AppSettings();
+            lock (_lock) _data = data;
         }
         catch (Exception ex) { Debug.WriteLine($"[Settings] Load failed: {ex}"); }
     }
@@ -47,7 +49,8 @@ public sealed class SettingsService
     {
         try
         {
-            var json = JsonSerializer.Serialize(_data, JsonOpts);
+            string json;
+            lock (_lock) json = JsonSerializer.Serialize(_data, JsonOpts);
             File.WriteAllText(_paths.SettingsFile, json);
             Changed?.Invoke();
         }
@@ -56,7 +59,7 @@ public sealed class SettingsService
 
     public void Update(Action<AppSettings> mut)
     {
-        mut(_data);
+        lock (_lock) mut(_data);
         Save();
     }
 }

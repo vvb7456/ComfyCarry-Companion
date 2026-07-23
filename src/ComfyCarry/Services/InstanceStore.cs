@@ -37,6 +37,16 @@ public sealed class InstanceStore
         get { lock (_lock) return _list.FirstOrDefault(i => i.IsCurrent) ?? _list.FirstOrDefault(); }
     }
 
+    /// <summary>在锁内修改当前实例字段，避免与 HeartbeatService 读竞态。</summary>
+    public void UpdateCurrent(Action<PanelInstance> mut)
+    {
+        lock (_lock)
+        {
+            var inst = _list.FirstOrDefault(i => i.IsCurrent) ?? _list.FirstOrDefault();
+            if (inst is not null) mut(inst);
+        }
+    }
+
     public void Load()
     {
         try

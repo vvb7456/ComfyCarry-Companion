@@ -9,7 +9,7 @@ public sealed partial class SettingsPage : Page
 {
     private LocalizationService L => App.Hub.Locale;
     public ObservableCollection<InstanceVM> Instances { get; } = new();
-    private bool _loading;   // 防止回填时触发 Update
+    private bool _loading;
 
     public SettingsPage()
     {
@@ -25,21 +25,25 @@ public sealed partial class SettingsPage : Page
     private void Localize()
     {
         Title.Text = L.T("settings.title");
+        Subtitle.Text = L.T("settings.subtitle");
         InstancesHeader.Text = L.T("settings.instances");
-        LangHeader.Text = L.T("settings.language");
-        ThemeHeader.Text = L.T("settings.theme");
-        ThemeSystem.Content = L.T("settings.theme.system");
-        ThemeLight.Content = L.T("settings.theme.light");
-        ThemeDark.Content = L.T("settings.theme.dark");
-        AutoSyncSwitch.Header = L.T("settings.autoSync");
-        AutoStartSwitch.Header = L.T("settings.autostart");
-        CloseToTraySwitch.Header = L.T("settings.closeToTray");
-        MinimizeToTraySwitch.Header = L.T("settings.minimizeToTray");
+        NewConnLabel.Text = L.T("settings.instances.new");
         SyncParamsHeader.Text = L.T("settings.syncParams");
         WatchIntervalLabel.Text = L.T("settings.watchInterval");
         WatchIntervalHint.Text = L.T("settings.watchInterval.hint");
         MinAgeLabel.Text = L.T("settings.minAge");
         MinAgeHint.Text = L.T("settings.minAge.hint");
+        AutoSyncSwitch.Header = L.T("settings.autoSync");
+        AutoSyncHint.Text = L.T("settings.autoSync.desc");
+        PreferencesHeader.Text = L.T("settings.preferences");
+        LangHeader.Text = L.T("settings.language");
+        ThemeHeader.Text = L.T("settings.theme");
+        ThemeSystem.Content = L.T("settings.theme.system");
+        ThemeLight.Content = L.T("settings.theme.light");
+        ThemeDark.Content = L.T("settings.theme.dark");
+        AutoStartSwitch.Header = L.T("settings.autostart");
+        CloseToTraySwitch.Header = L.T("settings.closeToTray");
+        MinimizeToTraySwitch.Header = L.T("settings.minimizeToTray");
         ProxyHeader.Text = L.T("settings.proxy");
         ProxyHint.Text = L.T("settings.proxy.hint");
         AboutHeader.Text = L.T("settings.about");
@@ -74,6 +78,12 @@ public sealed partial class SettingsPage : Page
         Instances.Clear();
         foreach (var inst in App.Hub.Instances.All)
             Instances.Add(new InstanceVM(inst));
+    }
+
+    private void NewConn_Click(object sender, RoutedEventArgs e)
+    {
+        var dlg = new ConnectDialog { XamlRoot = this.XamlRoot };
+        _ = dlg.ShowAsync();
     }
 
     private void Lang_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -123,7 +133,7 @@ public sealed partial class SettingsPage : Page
     {
         var on = AutoStartSwitch.IsOn;
         App.Hub.Settings.Update(s => s.StartWithWindows = on);
-        try { StartupHelper.SetAutoStart(on); } catch { /* 占位 */ }
+        try { StartupHelper.SetAutoStart(on); } catch { }
     }
 
     private void CloseToTray_Toggled(object sender, RoutedEventArgs e)

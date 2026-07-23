@@ -4,89 +4,143 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:ComfyCarry.Views"
     NavigationCacheMode="Required">
-    <ScrollViewer Padding="36,24,36,24" VerticalScrollBarVisibility="Auto">
-        <StackPanel HorizontalAlignment="Stretch" Spacing="24">
-            <TextBlock x:Name="Title" Text="设置" Style="{ThemeResource SubtitleTextBlockStyle}"/>
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Padding="40,32,40,16" HorizontalAlignment="Stretch" Spacing="20">
 
-            <!-- 实例管理 -->
-            <StackPanel Spacing="8">
-                <TextBlock x:Name="InstancesHeader" Text="实例管理" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
-                <ListView x:Name="InstanceList" ItemsSource="{x:Bind Instances}">
-                    <ListView.ItemTemplate>
-                        <DataTemplate x:DataType="local:InstanceVM">
-                            <Grid ColumnDefinitions="*,Auto" Padding="6">
-                                <StackPanel Spacing="2">
-                                    <TextBlock Text="{x:Bind Label}" FontWeight="SemiBold"/>
-                                    <TextBlock Text="{x:Bind BaseUrl}" Opacity="0.7" FontSize="12"/>
-                                </StackPanel>
-                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                                    <Button Content="{x:Bind SetCurrentLabel}" Tag="{x:Bind Id}" Click="SetCurrent_Click" Padding="8,4"/>
-                                    <Button Content="{x:Bind DeleteLabel}" Tag="{x:Bind Id}" Click="DeleteInstance_Click" Padding="8,4"/>
-                                </StackPanel>
-                            </Grid>
-                        </DataTemplate>
-                    </ListView.ItemTemplate>
-                </ListView>
+            <!-- 标题 -->
+            <StackPanel Spacing="4">
+                <TextBlock x:Name="Title" Style="{ThemeResource SubtitleTextBlockStyle}"/>
+                <TextBlock x:Name="Subtitle" Opacity="0.7"/>
             </StackPanel>
 
-            <!-- 语言 -->
-            <StackPanel Spacing="6">
-                <TextBlock x:Name="LangHeader" Text="语言"/>
-                <RadioButtons x:Name="LangRadios" SelectionChanged="Lang_SelectionChanged">
-                    <RadioButton Content="简体中文" Tag="zh-CN"/>
-                    <RadioButton Content="English" Tag="en-US"/>
-                </RadioButtons>
-            </StackPanel>
-
-            <!-- 主题 -->
-            <StackPanel Spacing="6">
-                <TextBlock x:Name="ThemeHeader" Text="主题"/>
-                <RadioButtons x:Name="ThemeRadios" SelectionChanged="Theme_SelectionChanged">
-                    <RadioButton x:Name="ThemeSystem" Content="跟随系统" Tag="System"/>
-                    <RadioButton x:Name="ThemeLight" Content="浅色" Tag="Light"/>
-                    <RadioButton x:Name="ThemeDark" Content="深色" Tag="Dark"/>
-                </RadioButtons>
-            </StackPanel>
-
-            <!-- 其它选项 -->
-            <StackPanel Spacing="6">
-                <ToggleSwitch x:Name="AutoSyncSwitch" Header="自动同步" Toggled="AutoSync_Toggled"/>
-                <ToggleSwitch x:Name="AutoStartSwitch" Header="开机自启" Toggled="AutoStart_Toggled"/>
-                <ToggleSwitch x:Name="CloseToTraySwitch" Header="关闭窗口时最小化到托盘" Toggled="CloseToTray_Toggled"/>
-                <ToggleSwitch x:Name="MinimizeToTraySwitch" Header="最小化时隐藏到托盘" Toggled="MinimizeToTray_Toggled"/>
-            </StackPanel>
+            <!-- 连接管理 -->
+            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1" CornerRadius="8" Padding="16">
+                <StackPanel Spacing="12">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <TextBlock x:Name="InstancesHeader" Style="{ThemeResource BodyStrongTextBlockStyle}" VerticalAlignment="Center"/>
+                        <Button x:Name="NewConnBtn" Grid.Column="1" Click="NewConn_Click" Style="{ThemeResource AccentButtonStyle}" Padding="16,6">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon Glyph="&#xE710;" FontSize="12"/>
+                                <TextBlock x:Name="NewConnLabel"/>
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                    <ListView x:Name="InstanceList" SelectionMode="None" IsItemClickEnabled="False">
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="Margin" Value="0,0,0,4"/>
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="local:InstanceVM">
+                                <Grid ColumnDefinitions="*,Auto" Padding="4" ColumnSpacing="8">
+                                    <StackPanel Spacing="2">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Ellipse Width="8" Height="8" Fill="{ThemeResource ControlStrongStrokeColorDefaultBrush}" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{x:Bind Label}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <TextBlock Text="{x:Bind BaseUrl}" Opacity="0.5" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                        <Button Content="{x:Bind SetCurrentLabel}" Tag="{x:Bind Id}" Click="SetCurrent_Click" Padding="12,4" FontSize="12"/>
+                                        <Button Content="{x:Bind DeleteLabel}" Tag="{x:Bind Id}" Click="DeleteInstance_Click" Padding="12,4" FontSize="12"/>
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </StackPanel>
+            </Border>
 
             <!-- 同步参数 -->
-            <StackPanel Spacing="8">
-                <TextBlock x:Name="SyncParamsHeader" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
-                <StackPanel Spacing="4">
-                    <TextBlock x:Name="WatchIntervalLabel" Opacity="0.7"/>
-                    <NumberBox x:Name="WatchIntervalBox" Minimum="5" Maximum="3600" SpinButtonPlacementMode="Compact"
-                               ValueChanged="WatchInterval_ValueChanged" HorizontalAlignment="Stretch"/>
-                    <TextBlock x:Name="WatchIntervalHint" Opacity="0.5" FontSize="12" TextWrapping="Wrap"/>
-                </StackPanel>
-                <StackPanel Spacing="4">
-                    <TextBlock x:Name="MinAgeLabel" Opacity="0.7"/>
-                    <NumberBox x:Name="MinAgeBox" Minimum="0" Maximum="600" SpinButtonPlacementMode="Compact"
-                               ValueChanged="MinAge_ValueChanged" HorizontalAlignment="Stretch"/>
-                    <TextBlock x:Name="MinAgeHint" Opacity="0.5" FontSize="12" TextWrapping="Wrap"/>
-                </StackPanel>
-            </StackPanel>
+            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1" CornerRadius="8" Padding="16">
+                <StackPanel Spacing="12">
+                    <TextBlock x:Name="SyncParamsHeader" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
 
-            <!-- 网络代理 -->
-            <StackPanel Spacing="6">
-                <TextBlock x:Name="ProxyHeader" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
-                <TextBox x:Name="ProxyBox"
-                         HorizontalAlignment="Stretch" TextChanged="Proxy_TextChanged"/>
-                <TextBlock x:Name="ProxyHint" Opacity="0.6" TextWrapping="Wrap"/>
-            </StackPanel>
+                    <!-- 双列 NumberBox -->
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="20">
+                        <StackPanel Spacing="4">
+                            <TextBlock x:Name="WatchIntervalLabel" Opacity="0.7"/>
+                            <NumberBox x:Name="WatchIntervalBox" Minimum="5" Maximum="3600" SpinButtonPlacementMode="Compact"
+                                       ValueChanged="WatchInterval_ValueChanged" HorizontalAlignment="Stretch"/>
+                            <TextBlock x:Name="WatchIntervalHint" Opacity="0.5" FontSize="12" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Spacing="4">
+                            <TextBlock x:Name="MinAgeLabel" Opacity="0.7"/>
+                            <NumberBox x:Name="MinAgeBox" Minimum="0" Maximum="600" SpinButtonPlacementMode="Compact"
+                                       ValueChanged="MinAge_ValueChanged" HorizontalAlignment="Stretch"/>
+                            <TextBlock x:Name="MinAgeHint" Opacity="0.5" FontSize="12" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- 分隔线 -->
+                    <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,1,0,0" Margin="0,4,0,4"/>
+
+                    <!-- 自动同步开关 -->
+                    <ToggleSwitch x:Name="AutoSyncSwitch" Toggled="AutoSync_Toggled"/>
+                    <TextBlock x:Name="AutoSyncHint" Opacity="0.5" FontSize="12" TextWrapping="Wrap" Margin="0,-8,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- 偏好设置 -->
+            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1" CornerRadius="8" Padding="16">
+                <StackPanel Spacing="12">
+                    <TextBlock x:Name="PreferencesHeader" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+
+                    <!-- 语言 + 主题 -->
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="20">
+                        <StackPanel Spacing="4">
+                            <TextBlock x:Name="LangHeader" Opacity="0.7"/>
+                            <RadioButtons x:Name="LangRadios" SelectionChanged="Lang_SelectionChanged" MaxColumns="1">
+                                <RadioButton Content="简体中文" Tag="zh-CN"/>
+                                <RadioButton Content="English" Tag="en-US"/>
+                            </RadioButtons>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Spacing="4">
+                            <TextBlock x:Name="ThemeHeader" Opacity="0.7"/>
+                            <RadioButtons x:Name="ThemeRadios" SelectionChanged="Theme_SelectionChanged" MaxColumns="1">
+                                <RadioButton x:Name="ThemeSystem" Tag="System"/>
+                                <RadioButton x:Name="ThemeLight" Tag="Light"/>
+                                <RadioButton x:Name="ThemeDark" Tag="Dark"/>
+                            </RadioButtons>
+                        </StackPanel>
+                    </Grid>
+
+                    <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,1,0,0" Margin="0,4,0,4"/>
+
+                    <!-- 系统行为开关 -->
+                    <ToggleSwitch x:Name="AutoStartSwitch" Toggled="AutoStart_Toggled"/>
+                    <ToggleSwitch x:Name="CloseToTraySwitch" Toggled="CloseToTray_Toggled"/>
+                    <ToggleSwitch x:Name="MinimizeToTraySwitch" Toggled="MinimizeToTray_Toggled"/>
+
+                    <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,1,0,0" Margin="0,4,0,4"/>
+
+                    <!-- 网络代理 -->
+                    <TextBlock x:Name="ProxyHeader" Opacity="0.7"/>
+                    <TextBox x:Name="ProxyBox" HorizontalAlignment="Stretch" TextChanged="Proxy_TextChanged"/>
+                    <TextBlock x:Name="ProxyHint" Opacity="0.5" FontSize="12" TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
 
             <!-- 关于 -->
-            <StackPanel Spacing="4">
-                <TextBlock x:Name="AboutHeader" Text="关于" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
-                <TextBlock x:Name="VersionLine"/>
-                <TextBlock x:Name="AboutDesc" Opacity="0.7" TextWrapping="Wrap"/>
-            </StackPanel>
+            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1" CornerRadius="8" Padding="16">
+                <StackPanel Spacing="4">
+                    <TextBlock x:Name="AboutHeader" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                    <TextBlock x:Name="VersionLine" Opacity="0.7"/>
+                    <TextBlock x:Name="AboutDesc" Opacity="0.5" FontSize="12" TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+
         </StackPanel>
     </ScrollViewer>
 </Page>

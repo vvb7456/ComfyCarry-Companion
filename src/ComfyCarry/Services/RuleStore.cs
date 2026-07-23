@@ -9,6 +9,7 @@ namespace ComfyCarry.Services;
 public sealed class RuleStore
 {
     private readonly string _file;
+    private readonly object _lock = new();
     private List<PullRule> _data = new();
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
@@ -27,36 +28,44 @@ public sealed class RuleStore
             if (File.Exists(_file))
             {
                 var json = File.ReadAllText(_file);
-                _data = JsonSerializer.Deserialize<List<PullRule>>(json, JsonOpts) ?? new();
+                var data = JsonSerializer.Deserialize<List<PullRule>>(json, JsonOpts) ?? new();
+                lock (_lock) _data = data;
             }
         }
-        catch { _data = new(); }
+        catch { lock (_lock) _data = new(); }
     }
 
     public void Save()
     {
         try
         {
-            var json = JsonSerializer.Serialize(_data, JsonOpts);
+            string json;
+            lock (_lock) json = JsonSerializer.Serialize(_data, JsonOpts);
             File.WriteAllText(_file, json);
         }
         catch { }
     }
 
-    public IReadOnlyList<PullRule> All => _data;
+    public IReadOnlyList<PullRule> All
+    {
+        get { lock (_lock) return _data.ToList(); }
+    }
 
     public void Upsert(PullRule rule)
     {
-        var idx = _data.FindIndex(r => r.RuleId == rule.RuleId);
-        if (idx >= 0) _data[idx] = rule;
-        else _data.Add(rule);
+        lock (_lock)
+        {
+            var idx = _data.FindIndex(r => r.RuleId == rule.RuleId);
+            if (idx >= 0) _data[idx] = rule;
+            else _data.Add(rule);
+        }
         Save();
         Changed?.Invoke();
     }
 
     public void Delete(string ruleId)
     {
-        _data.RemoveAll(r => r.RuleId == ruleId);
+        lock (_lock) _data.RemoveAll(r => r.RuleId == ruleId);
         Save();
         Changed?.Invoke();
     }

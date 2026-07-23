@@ -1,4 +1,5 @@
 using System.Net.NetworkInformation;
+using System.Reflection;
 using ComfyCarry.Models;
 
 namespace ComfyCarry.Services;
@@ -16,8 +17,8 @@ public sealed class HeartbeatService
     private Timer? _timer;
     private static readonly string Hostname = Environment.MachineName;
     private static readonly string AppVer =
-        System.Reflection.Assembly.GetExecutingAssembly().GetName().Version is { } v
-            ? $"{v.Major}.{v.Minor}.{v.Build}" : "1.0.0";
+        typeof(HeartbeatService).Assembly.GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion ?? "0.1.0-beta";
 
     public string LastStatus { get; private set; } = "idle";
 
@@ -45,36 +46,39 @@ public sealed class HeartbeatService
 
     private async void Tick(object? _)
     {
+        try { await TickAsync(); }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Heartbeat] tick: {ex}"); }
+    }
+
+    private async Task TickAsync()
+    {
         var inst = _instances.Current;
         if (inst is null || string.IsNullOrEmpty(inst.ClientId) || string.IsNullOrEmpty(inst.ApiKey)) return;
-        try
+        var status = _rules.Status;
+        LastStatus = status;
+        var hb = new HeartbeatRequest
         {
-            var status = _rules.Status;
-            LastStatus = status;
-            var hb = new HeartbeatRequest
+            ClientId = inst.ClientId,
+            Hostname = Hostname,
+            AppVersion = AppVer,
+            Status = status,
+            ActiveRuleId = _rules.ActiveRule?.RuleId,
+            Progress = new HeartbeatProgress
             {
-                ClientId = inst.ClientId,
-                Hostname = Hostname,
-                AppVersion = AppVer,
-                Status = status,
-                ActiveRuleId = _rules.ActiveRule?.RuleId,
-                Progress = new HeartbeatProgress
-                {
-                    File = _rules.ActiveFile,
-                    Pct = _rules.ProgressPct,
-                    Speed = _rules.ActiveSpeed,
-                },
-                RuleSummaries = _ruleStore.All.Select(r => new RuleSummary
-                {
-                    Name = r.Name,
-                    LocalPath = r.LocalPath,
-                    Method = r.Method,
-                    Trigger = r.Trigger,
-                    LastResult = r.LastResult,
-                }).ToList(),
-            };
-            await _api.SendHeartbeatAsync(inst, hb);
-        }
-        catch { /* 心跳失败静默 */ }
+                File = _rules.ActiveFile,
+                Pct = _rules.ProgressPct,
+                Speed = _rules.ActiveSpeed,
+            },
+            RuleSummaries = _ruleStore.All.Select(r => new RuleSummary
+            {
+                Name = r.Name,
+                Source = "",
+                LocalPath = r.LocalPath,
+                Method = r.Method,
+                Trigger = r.Trigger,
+                LastResult = r.LastResult,
+            }).ToList(),
+        };
+        await _api.SendHeartbeatAsync(inst, hb);
     }
 }

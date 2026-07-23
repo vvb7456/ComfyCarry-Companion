@@ -197,12 +197,14 @@ public sealed partial class MainWindow : Window
     public void ApplyTheme()
     {
         var t = App.Hub.Settings.Data.Theme;
-        RootTheme = t switch
+        var theme = t switch
         {
             AppTheme.Light => ElementTheme.Light,
             AppTheme.Dark => ElementTheme.Dark,
             _ => ElementTheme.Default,
         };
+        if (this.Content is FrameworkElement root) root.RequestedTheme = theme;
+        Nav.RequestedTheme = theme;
         ApplyTitleBarColors(t);
     }
 

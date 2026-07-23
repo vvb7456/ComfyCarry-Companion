@@ -24,6 +24,8 @@ public sealed class RuleEngine
     public long ActiveSpeed { get; private set; }
     public int FilesCompleted { get; private set; }
     public string? LastError { get; private set; }
+    public int QueueIndex { get; private set; }
+    public int QueueTotal { get; private set; }
 
     public event Action? StateChanged;
 
@@ -42,7 +44,7 @@ public sealed class RuleEngine
         else a();
     }
 
-    /// <summary>从本地 RuleStore 刷新规则列表（无网络）。</summary>
+    /// <summary>从本地 RuleStore 刷新规则列表（差量更新，避免全量重建导致 UI 闪烁）。</summary>
     public void Refresh()
     {
         var rules = _store.All;
@@ -50,8 +52,34 @@ public sealed class RuleEngine
         {
             lock (_lock)
             {
-                Rules.Clear();
-                foreach (var r in rules) Rules.Add(r);
+                // 移除已删除的
+                for (int i = Rules.Count - 1; i >= 0; i--)
+                {
+                    if (!rules.Any(r => r.RuleId == Rules[i].RuleId))
+                        Rules.RemoveAt(i);
+                }
+                // 新增或更新
+                foreach (var r in rules)
+                {
+                    var existing = Rules.FirstOrDefault(x => x.RuleId == r.RuleId);
+                    if (existing is null)
+                    {
+                        Rules.Add(r);
+                    }
+                    else
+                    {
+                        // 就地更新字段，不替换对象引用
+                        existing.Name = r.Name;
+                        existing.LocalPath = r.LocalPath;
+                        existing.Method = r.Method;
+                        existing.Content = r.Content;
+                        existing.Subdirs = r.Subdirs;
+                        existing.Trigger = r.Trigger;
+                        existing.Enabled = r.Enabled;
+                        existing.LastResult = r.LastResult;
+                        existing.LastRunAt = r.LastRunAt;
+                    }
+                }
             }
         });
     }
@@ -82,12 +110,34 @@ public sealed class RuleEngine
         });
     }
 
+    public void SetQueueContext(int index, int total)
+    {
+        Ui(() =>
+        {
+            QueueIndex = index;
+            QueueTotal = total;
+            StateChanged?.Invoke();
+        });
+    }
+
+    /// <summary>更新进度（transfer 行）。</summary>
     public void ReportProgress(string file, int pct, long speed, int filesCompleted = 0)
     {
         Ui(() =>
         {
-            ActiveFile = file;
+            if (!string.IsNullOrEmpty(file)) ActiveFile = file;
             ProgressPct = pct;
+            ActiveSpeed = speed;
+            FilesCompleted = filesCompleted;
+            StateChanged?.Invoke();
+        });
+    }
+
+    /// <summary>更新 stats 汇总行（不覆盖文件名）。</summary>
+    public void ReportStats(long speed, int filesCompleted)
+    {
+        Ui(() =>
+        {
             ActiveSpeed = speed;
             FilesCompleted = filesCompleted;
             StateChanged?.Invoke();
@@ -103,6 +153,8 @@ public sealed class RuleEngine
             ActiveFile = "";
             ActiveSpeed = 0;
             FilesCompleted = 0;
+            QueueIndex = 0;
+            QueueTotal = 0;
             if (ActiveRule is not null) ActiveRule.StatusText = "idle";
             ActiveRule = null;
             StateChanged?.Invoke();

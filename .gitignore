@@ -1,8 +1,12 @@
 bin/
 obj/
 publish/
+publish-*/
 *.zip
 *.user
 .vs/
 src/ComfyCarry/Assets/rclone.exe
 ci-log.txt
+AGENTS.md
+docs/
+tests/

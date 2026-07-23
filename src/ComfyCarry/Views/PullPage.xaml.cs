@@ -86,13 +86,18 @@ public sealed partial class PullPage : Page
             SyncFileName.Text = App.Hub.Rules.ActiveFile;
             SyncProgressBar.Value = App.Hub.Rules.ProgressPct;
             SyncPctText.Text = $"{App.Hub.Rules.ProgressPct}%";
-            SyncFilesText.Text = string.Format(L.T("pull.progress.files"), App.Hub.Rules.FilesCompleted);
+            var filesText = string.Format(L.T("pull.progress.files"), App.Hub.Rules.FilesCompleted);
+            if (App.Hub.Rules.QueueTotal > 1)
+                filesText += " · " + string.Format(L.T("pull.progress.queue"), App.Hub.Rules.QueueIndex, App.Hub.Rules.QueueTotal);
+            SyncFilesText.Text = filesText;
             SyncSpeedText.Text = FormatSpeed(App.Hub.Rules.ActiveSpeed);
         }
         else if (status == "error")
         {
             ProgressFailed.Visibility = Visibility.Visible;
-            FailedRuleName.Text = App.Hub.Rules.LastError ?? L.T("pull.progress.failed");
+            var ruleName = App.Hub.Rules.ActiveRule is { } ar && !string.IsNullOrEmpty(ar.Name)
+                ? ar.Name : L.T("pull.rule.unnamed");
+            FailedRuleName.Text = $"{ruleName} · {L.T("pull.progress.failed")}";
             FailedErrorText.Text = App.Hub.Rules.LastError ?? "";
         }
         else
@@ -185,7 +190,23 @@ public sealed partial class PullPage : Page
             var r = await confirm.ShowAsync();
             if (r != ContentDialogResult.Primary) return;
         }
-        _ = App.Hub.Pull.RunOnceAsync(inst, rule);
+        _ = App.Hub.Pull.RunOnceAsync(inst, rule).ContinueWith(t =>
+        {
+            if (t.Result is { ok: false, reason: { } msg } && msg == L.T("pull.error.busy"))
+            {
+                DispatcherQueue.TryEnqueue(async () =>
+                {
+                    var dlg = new ContentDialog
+                    {
+                        Title = L.T("pull.progress.title"),
+                        Content = msg,
+                        CloseButtonText = L.T("common.ok"),
+                        XamlRoot = this.XamlRoot,
+                    };
+                    await dlg.ShowAsync();
+                });
+            }
+        });
     }
 
     private async void DeleteRule_Click(object sender, RoutedEventArgs e)

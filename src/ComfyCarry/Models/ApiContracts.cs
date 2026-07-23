@@ -34,7 +34,7 @@ public sealed class HeartbeatRequest
     public string Hostname { get; set; } = "";
 
     [JsonPropertyName("app_version")]
-    public string AppVersion { get; set; } = "1.0.0";
+    public string AppVersion { get; set; } = "0.1.0-beta";
 
     [JsonPropertyName("status")]
     public string Status { get; set; } = "idle";
@@ -66,6 +66,9 @@ public sealed class RuleSummary
 {
     [JsonPropertyName("name")]
     public string Name { get; set; } = "";
+
+    [JsonPropertyName("source")]
+    public string Source { get; set; } = "";
 
     [JsonPropertyName("local_path")]
     public string LocalPath { get; set; } = "";

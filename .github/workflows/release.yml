@@ -1,22 +1,37 @@
-name: Build
+name: Release
 
 on:
   push:
-    branches: [main]
+    tags: ['v*']
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Version tag (e.g. v0.1.0-beta)'
+        required: true
 
 jobs:
-  build:
+  release:
     runs-on: windows-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
+
+      - name: Determine version
+        id: ver
+        shell: pwsh
+        run: |
+          $tag = '${{ github.event.inputs.tag }}'
+          if ([string]::IsNullOrEmpty($tag)) { $tag = '${{ github.ref_name }}' }
+          $tag = $tag.TrimStart('v')
+          echo "version=$tag" >> $env:GITHUB_OUTPUT
 
       - name: Setup .NET 9
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
 
-      - name: Publish launcher (framework-dependent single-file)
+      - name: Publish launcher
         shell: pwsh
         run: |
           dotnet publish src/ComfyCarry.Launcher/ComfyCarry.Launcher.csproj `
@@ -24,7 +39,7 @@ jobs:
             --self-contained false /p:PublishSingleFile=true `
             -o publish-launcher
 
-      - name: Publish app (self-contained, unpackaged)
+      - name: Publish app
         shell: pwsh
         run: |
           dotnet publish src/ComfyCarry/ComfyCarry.csproj `
@@ -81,10 +96,13 @@ jobs:
 
       - name: Zip package
         shell: pwsh
-        run: Compress-Archive -Path publish/* -DestinationPath ComfyCarry-windows-x64.zip
+        run: Compress-Archive -Path publish/* -DestinationPath "ComfyCarry-${{ steps.ver.outputs.version }}-windows-x64.zip"
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: ComfyCarry-windows-x64
-          path: ComfyCarry-windows-x64.zip
+          tag_name: ${{ github.ref_name || format('v{0}', inputs.tag) }}
+          name: ${{ steps.ver.outputs.version }}
+          generate_release_notes: true
+          prerelease: ${{ contains(steps.ver.outputs.version, '-') }}
+          files: "ComfyCarry-${{ steps.ver.outputs.version }}-windows-x64.zip"
