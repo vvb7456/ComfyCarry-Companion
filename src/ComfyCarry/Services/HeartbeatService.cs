@@ -1,5 +1,4 @@
 using System.Net.NetworkInformation;
-using System.Reflection;
 using ComfyCarry.Models;
 
 namespace ComfyCarry.Services;
@@ -16,9 +15,13 @@ public sealed class HeartbeatService
     private readonly SettingsService _settings;
     private Timer? _timer;
     private static readonly string Hostname = Environment.MachineName;
-    private static readonly string AppVer =
-        typeof(HeartbeatService).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()
-            ?.InformationalVersion ?? "0.0.0";
+    private static readonly string AppVer = (() =>
+    {
+        // 与 SettingsPage 关于页一致: 用 AssemblyVersion 的 Major.Minor.Build,
+        // 不用 InformationalVersion (CI 会带 +commithash 后缀, 面板卡片显示脏)
+        var v = typeof(HeartbeatService).Assembly.GetName().Version;
+        return v is null ? "0.0.0" : $"{v.Major}.{v.Minor}.{v.Build}";
+    })();
 
     public string LastStatus { get; private set; } = "idle";
 
