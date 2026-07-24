@@ -15,15 +15,17 @@ public sealed class HeartbeatService
     private readonly SettingsService _settings;
     private Timer? _timer;
     private static readonly string Hostname = Environment.MachineName;
-    private static readonly string AppVer = (() =>
-    {
-        // 与 SettingsPage 关于页一致: 用 AssemblyVersion 的 Major.Minor.Build,
-        // 不用 InformationalVersion (CI 会带 +commithash 后缀, 面板卡片显示脏)
-        var v = typeof(HeartbeatService).Assembly.GetName().Version;
-        return v is null ? "0.0.0" : $"{v.Major}.{v.Minor}.{v.Build}";
-    })();
+    private static readonly string AppVer = GetAppVersion();
 
     public string LastStatus { get; private set; } = "idle";
+
+    // 与 SettingsPage 关于页一致: 用 AssemblyVersion 的 Major.Minor.Build,
+    // 不用 InformationalVersion (CI 会带 +commithash 后缀, 面板卡片显示脏)
+    private static string GetAppVersion()
+    {
+        var v = typeof(HeartbeatService).Assembly.GetName().Version;
+        return v is null ? "0.0.0" : $"{v.Major}.{v.Minor}.{v.Build}";
+    }
 
     public HeartbeatService(CompanionApiClient api, InstanceStore instances, RuleEngine rules, RuleStore ruleStore, SettingsService settings)
     {
