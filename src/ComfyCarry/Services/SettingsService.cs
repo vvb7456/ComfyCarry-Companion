@@ -16,7 +16,7 @@ public sealed class AppSettings
     public int HeartbeatIntervalSec { get; set; } = 20;
     public int PullWatchIntervalSec { get; set; } = 60;
     public int MinAgeSec { get; set; } = 30;
-    public string LastTab { get; set; } = "cloud";
+    public string LastTab { get; set; } = "pull";
     public string Proxy { get; set; } = "";          // rclone 代理地址，如 http://127.0.0.1:7890
 }
 
