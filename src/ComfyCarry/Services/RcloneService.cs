@@ -451,6 +451,7 @@ public sealed class RcloneService
             "--config", _paths.PullRcloneConf,
             "--multi-thread-cutoff", "32M",
             "--multi-thread-streams", "4",
+            "-v",
             "--use-json-log",
             "--stats-one-line",
             "--stats", "5s",

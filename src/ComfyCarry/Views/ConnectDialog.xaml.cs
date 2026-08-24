@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.UI.Xaml.Controls;
 using ComfyCarry.Services;
 
@@ -58,8 +59,10 @@ public sealed partial class ConnectDialog : ContentDialog
             inst.IsCurrent = true;
             App.Hub.Instances.EnsureClientId(inst);
             App.Hub.Instances.Upsert(inst);
-            // 确保 webdav remote
-            await App.Hub.Rclone.EnsureInstanceWebdavRemoteAsync(inst);
+            _ = App.Hub.Rclone.EnsureInstanceWebdavRemoteAsync(inst).ContinueWith(t =>
+            {
+                if (t.IsFaulted) Debug.WriteLine($"[ConnectDialog] ensure webdav remote: {t.Exception}");
+            });
             Status.Text = L.T("pull.connect.success");
         }
         catch (Exception ex)
