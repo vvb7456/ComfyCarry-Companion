@@ -79,10 +79,40 @@ public sealed class PullEngine
             {
                 if (_appToken.IsCancellationRequested) break;
                 _rules.SetQueueContext(i + 1, watchRules.Count);
+                if (!await HasChangesAsync(inst, watchRules[i], _appToken))
+                    continue;
                 await RunOnceAsync(inst, watchRules[i], _appToken);
             }
         }
         catch (Exception ex) { Debug.WriteLine($"[PullEngine] tick: {ex}"); }
+    }
+
+    /// <summary>
+    /// watch 预检：用 rclone lsf 列远端匹配文件，与本地比对。
+    /// - copy：远端有匹配文件且（本地不存在或大小不同）= 有变更
+    /// - move：远端有匹配文件 = 有变更（需执行以清理远端源文件）
+    /// 预检失败时保守返回 true（宁可多余跑一次也不漏同步）。
+    /// </summary>
+    private async Task<bool> HasChangesAsync(PanelInstance inst, PullRule rule, CancellationToken ct)
+    {
+        try
+        {
+            var remoteFiles = await _rclone.ListRemoteFilesAsync(inst, rule, ct);
+            if (remoteFiles.Count == 0) return false;
+            if (rule.Method == "move") return true;
+            foreach (var (relPath, size) in remoteFiles)
+            {
+                var localFile = Path.Combine(rule.LocalPath, relPath.Replace('/', Path.DirectorySeparatorChar));
+                if (!File.Exists(localFile) || new FileInfo(localFile).Length != size)
+                    return true;
+            }
+            return false;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[PullEngine] precheck {rule.Name}: {ex}");
+            return true;
+        }
     }
 
     private string L(string key) => _locale.T(key);

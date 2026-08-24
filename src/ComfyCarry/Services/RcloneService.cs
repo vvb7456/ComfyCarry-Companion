@@ -433,6 +433,39 @@ public sealed class RcloneService
     }
 
     /// <summary>
+    /// 列出远端被规则白名单匹配的文件（带 filter），用于 watch 预检。
+    /// 返回 (相对路径, 大小) 列表。
+    /// </summary>
+    public async Task<List<(string Path, long Size)>> ListRemoteFilesAsync(
+        PanelInstance inst, PullRule rule, CancellationToken ct = default)
+    {
+        var remoteName = InstanceRemoteName(inst);
+        var args = new List<string>
+        {
+            "lsf", $"{remoteName}:",
+            "--config", _paths.PullRcloneConf,
+            "--format", "ps",
+            "--separator", "|",
+            "--files-only",
+            "--recursive",
+        };
+        args.AddRange(BuildFilterArgs(rule));
+        var (code, stdout, stderr) = await RunAsync(args, _settings.Data.Proxy, ct);
+        if (code != 0)
+            throw new Exception(stderr.Length > 0 ? stderr.Trim() : $"rclone lsf exited {code}");
+        var list = new List<(string, long)>();
+        foreach (var line in stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var parts = line.Split('|');
+            var name = parts[0].Trim();
+            if (string.IsNullOrEmpty(name)) continue;
+            long size = parts.Length > 1 && long.TryParse(parts[1], out var sz) ? sz : 0;
+            list.Add((name, size));
+        }
+        return list;
+    }
+
+    /// <summary>
     /// 执行拉取：rclone <method> <remote>:<remote_path> <local_path> --filter ... --multi-thread-cutoff 32M --multi-thread-streams 4 --use-json-log --stats-one-line
     /// 逐行解析 JSON 日志并回调。
     /// </summary>
