@@ -130,25 +130,13 @@ public sealed class PullEngine
                 {
                     var st = entry.Stats;
                     long speed = (long)st.Speed;
-                    int done = st.Transfers;
+                    filesSynced = st.Transfers;
                     int pct = st.TotalBytes > 0
                         ? (int)Math.Round((double)st.Bytes / st.TotalBytes * 100)
                         : 0;
                     var active = st.Transferring.Count > 0 ? st.Transferring[0] : null;
                     string file = active?.Name ?? "";
-                    _rules.ReportProgress(file, pct, speed, done);
-                }
-                else if (entry.Percentage is not null)
-                {
-                    int pct = (int)Math.Round(entry.Percentage.Value);
-                    long speed = entry.Speed is { } s ? (long)s : 0;
-                    string file = entry.Object ?? entry.Name ?? "";
                     _rules.ReportProgress(file, pct, speed, filesSynced);
-                    if (entry.Status == "done")
-                    {
-                        filesSynced++;
-                        await _jobs.EventAsync(inst, jobId, "file_done", rule.RuleId, pars: new() { ["file"] = file, ["pct"] = pct, ["speed"] = speed }, ct: ct);
-                    }
                 }
                 else if (entry.Level == "error")
                 {
@@ -158,6 +146,14 @@ public sealed class PullEngine
             }, ct);
 
             var errorKey = RcloneErrorMapper.Map(code, lastRcloneError);
+
+            if (code == 0 && filesSynced == 0)
+            {
+                await _jobs.FinishAsync(inst, jobId, "success", filesSynced: 0, summary: L("pull.error.nochange"), ct: ct);
+                _rules.MarkIdle();
+                return (true, null);
+            }
+
             rule.LastResult = code == 0 ? $"{filesSynced} {L("pull.error.success")}" : L(errorKey);
             rule.LastRunAt = DateTime.Now;
             _ruleStore.Upsert(rule);
