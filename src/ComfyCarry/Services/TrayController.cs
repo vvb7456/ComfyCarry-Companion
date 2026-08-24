@@ -52,8 +52,8 @@ public sealed class TrayController : IDisposable
         }
         catch { _icon.Icon = LoadFallbackIcon(); }
 
-        try { _icon.ForceCreate(); Log("icon ForceCreate ok"); }
-        catch (Exception ex) { Debug.WriteLine($"[Tray] create: {ex}"); Log($"icon ForceCreate FAILED: {ex.Message}"); }
+        try { _icon.ForceCreate(); AppLog.Info("[Tray] icon ForceCreate ok"); }
+        catch (Exception ex) { AppLog.Info($"[Tray] create FAILED: {ex}"); }
     }
 
     private static Icon? LoadFallbackIcon()
@@ -144,16 +144,7 @@ public sealed class TrayController : IDisposable
 
     // ─── 通用逻辑 ─────────────────────────────────────────────────────
 
-    private static void Log(string msg)
-    {
-        try
-        {
-            var f = App.Hub.Paths.LogFile;
-            Directory.CreateDirectory(Path.GetDirectoryName(f)!);
-            File.AppendAllText(f, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} [tray] {msg}{Environment.NewLine}");
-        }
-        catch { /* ignore */ }
-    }
+    private static void Log(string msg) => AppLog.Debug($"[Tray] {msg}");
 
     private void ExitApp()
     {

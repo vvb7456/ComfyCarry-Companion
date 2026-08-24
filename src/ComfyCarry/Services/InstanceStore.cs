@@ -65,6 +65,7 @@ public sealed class InstanceStore
         catch (Exception ex)
         {
             Debug.WriteLine($"[InstanceStore] Load failed: {ex}");
+            AppLog.Info($"[InstanceStore] Load failed: {ex}");
         }
     }
 
@@ -90,6 +91,7 @@ public sealed class InstanceStore
         catch (Exception ex)
         {
             Debug.WriteLine($"[InstanceStore] Save failed: {ex}");
+            AppLog.Info($"[InstanceStore] Save failed: {ex}");
         }
     }
 

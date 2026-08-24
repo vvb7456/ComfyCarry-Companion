@@ -41,10 +41,12 @@ public sealed partial class ConnectDialog : ContentDialog
             var cr = await App.Hub.Api.ConnectAsync(url, pwd);
             if (!cr.Ok || string.IsNullOrEmpty(cr.ApiKey))
             {
+                AppLog.Info($"[Connect] 失败 url={url} error={cr.Error}");
                 Status.Text = L.T("pull.connect.failed") + (cr.Error ?? L.T("pull.connect.unknownError"));
                 args.Cancel = true;
                 return;
             }
+            AppLog.Info($"[Connect] 成功 url={url}");
             // 存实例（去重：同 URL 更新而非新建）
             var normalizedUrl = url.TrimEnd('/');
             var existing = App.Hub.Instances.All.FirstOrDefault(

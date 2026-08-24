@@ -18,6 +18,7 @@ public sealed class AppSettings
     public int MinAgeSec { get; set; } = 30;
     public string LastTab { get; set; } = "pull";
     public string Proxy { get; set; } = "";          // rclone 代理地址，如 http://127.0.0.1:7890
+    public bool DebugLog { get; set; } = false;       // 调试日志开关，开启后记录完整 rclone 行等
 }
 
 public sealed class SettingsService
@@ -42,7 +43,7 @@ public sealed class SettingsService
             var data = JsonSerializer.Deserialize<AppSettings>(json, JsonOpts) ?? new AppSettings();
             lock (_lock) _data = data;
         }
-        catch (Exception ex) { Debug.WriteLine($"[Settings] Load failed: {ex}"); }
+        catch (Exception ex) { Debug.WriteLine($"[Settings] Load failed: {ex}"); AppLog.Info($"[Settings] Load failed: {ex}"); }
     }
 
     public void Save()
@@ -54,7 +55,7 @@ public sealed class SettingsService
             File.WriteAllText(_paths.SettingsFile, json);
             Changed?.Invoke();
         }
-        catch (Exception ex) { Debug.WriteLine($"[Settings] Save failed: {ex}"); }
+        catch (Exception ex) { Debug.WriteLine($"[Settings] Save failed: {ex}"); AppLog.Info($"[Settings] Save failed: {ex}"); }
     }
 
     public void Update(Action<AppSettings> mut)

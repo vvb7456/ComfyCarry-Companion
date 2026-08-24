@@ -49,12 +49,15 @@ public sealed class ServiceHub : IDisposable
             Instances.Load();
             RuleStore.Load();
             Settings.Load();
+            AppLog.Init(Paths.LogFile, Settings.Data.DebugLog);
+            AppLog.Info($"=== ComfyCarry 启动 v{System.Reflection.Assembly.GetExecutingAssembly().GetName().Version} ===");
             Heartbeat.Start();
             Pull.Start();
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"[ServiceHub] Start failed: {ex}");
+            AppLog.Info($"[ServiceHub] Start failed: {ex}");
         }
     }
 
@@ -62,6 +65,7 @@ public sealed class ServiceHub : IDisposable
     {
         try
         {
+            AppLog.Info("=== ComfyCarry 停止 ===");
             _appCts.Cancel();
             Pull.Stop();
             Heartbeat.Stop();
@@ -69,6 +73,7 @@ public sealed class ServiceHub : IDisposable
         catch (Exception ex)
         {
             Debug.WriteLine($"[ServiceHub] Stop failed: {ex}");
+            AppLog.Info($"[ServiceHub] Stop failed: {ex}");
         }
     }
 

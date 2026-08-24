@@ -127,6 +127,11 @@
                     <TextBlock x:Name="ProxyHeader" Opacity="0.7"/>
                     <TextBox x:Name="ProxyBox" HorizontalAlignment="Stretch" TextChanged="Proxy_TextChanged"/>
                     <TextBlock x:Name="ProxyHint" Opacity="0.5" FontSize="12" TextWrapping="Wrap"/>
+
+                    <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,1,0,0" Margin="0,4,0,4"/>
+
+                    <ToggleSwitch x:Name="DebugLogSwitch" Toggled="DebugLog_Toggled"/>
+                    <TextBlock x:Name="DebugLogHint" Opacity="0.5" FontSize="12" TextWrapping="Wrap" Margin="0,-8,0,0"/>
                 </StackPanel>
             </Border>
 

@@ -55,19 +55,9 @@ public sealed class RcloneService
         var (code, stdout, stderr) = await RunAsync(args, proxy, ct);
         var state = ParseState(stdout, stderr, code);
         // 落盘诊断（不记 args，避免泄露密钥）：便于定位 OAuth 状态机走向
-        LogLine($"config name={name} type={type} continue={(continueState is { Length: > 0 })} exit={code} " +
+        AppLog.Info($"[rclone] config name={name} type={type} continue={(continueState is { Length: > 0 })} exit={code} " +
                 $"stdoutLen={stdout.Length} -> State='{state.State}' Option='{state.Option?.Name}' Error='{state.Error}'");
         return state;
-    }
-
-    private void LogLine(string msg)
-    {
-        try
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(_paths.LogFile)!);
-            File.AppendAllText(_paths.LogFile, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} [rclone] {msg}{Environment.NewLine}");
-        }
-        catch { /* 日志失败不影响主流程 */ }
     }
 
     // rclone OAuth 回调固定端口
@@ -120,7 +110,7 @@ public sealed class RcloneService
             }
             foreach (var pid in pids)
             {
-                try { using var proc = Process.GetProcessById(pid); proc.Kill(true); LogLine($"已杀占用 {port} 的进程 pid={pid}"); }
+                try { using var proc = Process.GetProcessById(pid); proc.Kill(true); AppLog.Info($"已杀占用 {port} 的进程 pid={pid}"); }
                 catch { /* 进程可能已退出 */ }
             }
         }
@@ -160,7 +150,7 @@ public sealed class RcloneService
             }
             if (!inExcludedRange) return false;
 
-            LogLine($"端口 {port} 在 Windows 排除范围内，尝试提权重启 winnat 释放");
+            AppLog.Info($"端口 {port} 在 Windows 排除范围内，尝试提权重启 winnat 释放");
 
             // 2. 提权重启 winnat（释放动态端口保留）
             var elev = new ProcessStartInfo
@@ -174,12 +164,12 @@ public sealed class RcloneService
             };
             using var ep = Process.Start(elev);
             ep?.WaitForExit(15000);
-            LogLine("winnat 重启完成");
+            AppLog.Info("winnat 重启完成");
             return true;
         }
         catch (Exception ex)
         {
-            LogLine($"TryReleaseExcludedPort 失败: {ex.Message}");
+            AppLog.Info($"TryReleaseExcludedPort 失败: {ex.Message}");
             return false;
         }
     }
@@ -261,7 +251,7 @@ public sealed class RcloneService
                 return ConfigDriveResult.Error("rclone returned no option but is not done.");
 
             var opt = st.Option;
-            LogLine($"step={step} opt.Name={opt.Name} Exclusive={opt.Exclusive} Examples={opt.Examples.Count}");
+            AppLog.Info($"step={step} opt.Name={opt.Name} Exclusive={opt.Exclusive} Examples={opt.Examples.Count}");
 
             // config_is_local：自动继续，result=true。
             // 这一步 rclone 打开浏览器并起本地 127.0.0.1:53682 回调，阻塞到登录完成。
@@ -274,7 +264,7 @@ public sealed class RcloneService
                 st = await ConfigContinueAsync(confPath, name, type, localState, "true", proxy, ct);
                 if (LooksLikePortBindError(st.Error))
                 {
-                    LogLine("53682 绑定失败，清理占用者 + 检测排除范围后重试");
+                    AppLog.Info("53682 绑定失败，清理占用者 + 检测排除范围后重试");
                     KillPortListener(OAuthPort);
                     TryReleaseExcludedPort(OAuthPort);
                     await Task.Delay(1000, ct);
@@ -292,18 +282,18 @@ public sealed class RcloneService
                 string? answer = ResolveAutoAnswer(autoVal, opt.Examples);
                 if (answer is not null)
                 {
-                    LogLine($"auto-answer {opt.Name} = {answer}");
+                    AppLog.Info($"auto-answer {opt.Name} = {answer}");
                     st = await ConfigContinueAsync(confPath, name, type, st.State, answer, proxy, ct);
                     continue;
                 }
                 // __match 未命中 → 不自动回答，落到下面的 NeedChoice
-                LogLine($"auto-answer {opt.Name}: match failed, falling through to user choice. Examples: [{string.Join(" | ", opt.Examples.Select(e => e.Help))}]");
+                AppLog.Info($"auto-answer {opt.Name}: match failed, falling through to user choice. Examples: [{string.Join(" | ", opt.Examples.Select(e => e.Help))}]");
             }
 
             // 真正要用户选的：有 Examples 列表且非 bool 类型（无论 Exclusive 与否都展示给用户选）
             if (!string.Equals(opt.Type, "bool", StringComparison.OrdinalIgnoreCase) && opt.Examples.Count > 1)
             {
-                LogLine($"NeedChoice {opt.Name}: [{string.Join(" | ", opt.Examples.Select(e => $"{e.Value}={e.Help}"))}]");
+                AppLog.Info($"NeedChoice {opt.Name}: [{string.Join(" | ", opt.Examples.Select(e => $"{e.Value}={e.Help}"))}]");
                 return ConfigDriveResult.NeedChoice(st.State, opt.Name, opt.Examples);
             }
 
@@ -653,6 +643,7 @@ public sealed class RcloneService
             try { p.Kill(entireProcessTree: true); } catch { /* ignore */ }
             await p.WaitForExitAsync(CancellationToken.None);
         }
+        AppLog.Info($"[rclone] 进程退出 code={p.ExitCode}");
         return p.ExitCode;
     }
 

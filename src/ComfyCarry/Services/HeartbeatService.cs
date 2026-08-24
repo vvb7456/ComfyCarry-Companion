@@ -52,7 +52,7 @@ public sealed class HeartbeatService
     private async void Tick(object? _)
     {
         try { await TickAsync(); }
-        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Heartbeat] tick: {ex}"); }
+        catch (Exception ex) { AppLog.Info($"[Heartbeat] tick: {ex}"); }
     }
 
     private async Task TickAsync()

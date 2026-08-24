@@ -62,7 +62,7 @@ public sealed class PullEngine
     private async void Tick(object? _)
     {
         try { await TickAsync(); }
-        catch (Exception ex) { Debug.WriteLine($"[PullEngine] tick: {ex}"); }
+        catch (Exception ex) { AppLog.Info($"[PullEngine] tick: {ex}"); }
     }
 
     private async Task TickAsync()
@@ -80,11 +80,14 @@ public sealed class PullEngine
                 if (_appToken.IsCancellationRequested) break;
                 _rules.SetQueueContext(i + 1, watchRules.Count);
                 if (!await HasChangesAsync(inst, watchRules[i], _appToken))
+                {
+                    AppLog.Debug($"[PullEngine] 预检无变更: {watchRules[i].Name}");
                     continue;
+                }
                 await RunOnceAsync(inst, watchRules[i], _appToken);
             }
         }
-        catch (Exception ex) { Debug.WriteLine($"[PullEngine] tick: {ex}"); }
+        catch (Exception ex) { AppLog.Info($"[PullEngine] tick: {ex}"); }
     }
 
     /// <summary>
@@ -98,6 +101,7 @@ public sealed class PullEngine
         try
         {
             var remoteFiles = await _rclone.ListRemoteFilesAsync(inst, rule, ct);
+            AppLog.Debug($"[PullEngine] 预检 {rule.Name}: 远端 {remoteFiles.Count} 文件");
             if (remoteFiles.Count == 0) return false;
             if (rule.Method == "move") return true;
             foreach (var (relPath, size) in remoteFiles)
@@ -110,7 +114,7 @@ public sealed class PullEngine
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[PullEngine] precheck {rule.Name}: {ex}");
+            AppLog.Info($"[PullEngine] 预检失败 {rule.Name}: {ex}");
             return true;
         }
     }
@@ -143,9 +147,10 @@ public sealed class PullEngine
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[PullEngine] ensure remote: {ex}");
+            AppLog.Info($"[PullEngine] ensure remote: {ex}");
         }
 
+        AppLog.Info($"[PullEngine] 同步开始: rule={rule.Name} method={rule.Method} dst={rule.LocalPath}");
         _rules.SetActive(rule);
         string? jobId = await _jobs.StartAsync(inst, rule, ct);
         await _jobs.EventAsync(inst, jobId, "rule_start_pull", rule.RuleId, pars: new() { ["name"] = rule.Name }, ct: ct);
@@ -167,11 +172,17 @@ public sealed class PullEngine
                     var active = st.Transferring.Count > 0 ? st.Transferring[0] : null;
                     string file = active?.Name ?? "";
                     _rules.ReportProgress(file, pct, speed, filesSynced);
+                    AppLog.Debug($"[rclone] stats bytes={st.Bytes}/{st.TotalBytes} pct={pct}% transfers={st.Transfers} speed={speed}");
                 }
                 else if (entry.Level == "error")
                 {
                     lastRcloneError = entry.Msg;
+                    AppLog.Info($"[rclone] error: {entry.Msg}");
                     await _jobs.EventAsync(inst, jobId, "rule_error", rule.RuleId, "error", new() { ["msg"] = entry.Msg }, ct);
+                }
+                else
+                {
+                    AppLog.Debug($"[rclone] {entry.Level}: {entry.Msg}");
                 }
             }, ct);
 
@@ -179,6 +190,7 @@ public sealed class PullEngine
 
             if (code == 0 && filesSynced == 0)
             {
+                AppLog.Info($"[PullEngine] 同步完成(无变更): rule={rule.Name}");
                 await _jobs.FinishAsync(inst, jobId, "success", filesSynced: 0, summary: L("pull.error.nochange"), ct: ct);
                 _rules.MarkIdle();
                 return (true, null);
@@ -190,12 +202,14 @@ public sealed class PullEngine
 
             if (code == 0)
             {
+                AppLog.Info($"[PullEngine] 同步完成: rule={rule.Name} files={filesSynced}");
                 await _jobs.FinishAsync(inst, jobId, "success", filesSynced: filesSynced, summary: rule.Name, ct: ct);
                 _rules.MarkIdle();
                 return (true, null);
             }
             else
             {
+                AppLog.Info($"[PullEngine] 同步失败: rule={rule.Name} code={code} error={L(errorKey)}");
                 await _jobs.FinishAsync(inst, jobId, "failed", filesSynced: filesSynced, summary: L(errorKey), ct: ct);
                 _rules.MarkError(L(errorKey));
                 return (false, L(errorKey));
@@ -203,6 +217,7 @@ public sealed class PullEngine
         }
         catch (OperationCanceledException)
         {
+            AppLog.Info($"[PullEngine] 同步取消: rule={rule.Name}");
             rule.LastResult = L("pull.error.cancelled");
             rule.LastRunAt = DateTime.Now;
             _ruleStore.Upsert(rule);
@@ -214,6 +229,7 @@ public sealed class PullEngine
         {
             var msg = ex.Message;
             var key = RcloneErrorMapper.Map(-1, msg);
+            AppLog.Info($"[PullEngine] 同步异常: rule={rule.Name} {ex}");
             rule.LastResult = L(key);
             rule.LastRunAt = DateTime.Now;
             _ruleStore.Upsert(rule);

@@ -46,6 +46,8 @@ public sealed partial class SettingsPage : Page
         MinimizeToTraySwitch.Header = L.T("settings.minimizeToTray");
         ProxyHeader.Text = L.T("settings.proxy");
         ProxyHint.Text = L.T("settings.proxy.hint");
+        DebugLogSwitch.Header = L.T("settings.debugLog");
+        DebugLogHint.Text = L.T("settings.debugLog.hint");
         AboutHeader.Text = L.T("settings.about");
         AboutDesc.Text = L.T("settings.about.desc");
         var ver = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
@@ -69,6 +71,7 @@ public sealed partial class SettingsPage : Page
             WatchIntervalBox.Value = s.PullWatchIntervalSec;
             MinAgeBox.Value = s.MinAgeSec;
             ProxyBox.Text = s.Proxy ?? "";
+            DebugLogSwitch.IsOn = s.DebugLog;
         }
         finally { _loading = false; }
     }
@@ -150,6 +153,15 @@ public sealed partial class SettingsPage : Page
     {
         if (_loading) return;
         App.Hub.Settings.Update(s => s.Proxy = ProxyBox.Text.Trim());
+    }
+
+    private void DebugLog_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        var on = DebugLogSwitch.IsOn;
+        App.Hub.Settings.Update(s => s.DebugLog = on);
+        AppLog.SetDebug(on);
+        AppLog.Info($"[Settings] 调试日志已{ (on ? "开启" : "关闭") }");
     }
 
     private void SetCurrent_Click(object sender, RoutedEventArgs e)
