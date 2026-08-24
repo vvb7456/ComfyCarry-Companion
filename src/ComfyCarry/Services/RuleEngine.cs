@@ -133,17 +133,6 @@ public sealed class RuleEngine
         });
     }
 
-    /// <summary>更新 stats 汇总行（不覆盖文件名）。</summary>
-    public void ReportStats(long speed, int filesCompleted)
-    {
-        Ui(() =>
-        {
-            ActiveSpeed = speed;
-            FilesCompleted = filesCompleted;
-            StateChanged?.Invoke();
-        });
-    }
-
     public void MarkIdle()
     {
         Ui(() =>

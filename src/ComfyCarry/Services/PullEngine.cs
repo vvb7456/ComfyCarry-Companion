@@ -131,17 +131,12 @@ public sealed class PullEngine
                     var st = entry.Stats;
                     long speed = (long)st.Speed;
                     int done = st.Transfers;
+                    int pct = st.TotalBytes > 0
+                        ? (int)Math.Round((double)st.Bytes / st.TotalBytes * 100)
+                        : 0;
                     var active = st.Transferring.Count > 0 ? st.Transferring[0] : null;
-                    if (active is not null)
-                    {
-                        int pct = active.Percentage is { } p ? (int)Math.Round(p) : 0;
-                        string file = active.Name;
-                        _rules.ReportProgress(file, pct, speed, done);
-                    }
-                    else
-                    {
-                        _rules.ReportStats(speed, done);
-                    }
+                    string file = active?.Name ?? "";
+                    _rules.ReportProgress(file, pct, speed, done);
                 }
                 else if (entry.Percentage is not null)
                 {
