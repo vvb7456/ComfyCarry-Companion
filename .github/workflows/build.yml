@@ -76,12 +76,8 @@ jobs:
           )
           foreach ($f in $unused) { Remove-Item (Join-Path $app $f) -Force -ErrorAction SilentlyContinue }
 
-      - name: Zip package
-        shell: pwsh
-        run: Compress-Archive -Path publish/* -DestinationPath ComfyCarry-windows-x64.zip
-
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ComfyCarry-windows-x64
-          path: ComfyCarry-windows-x64.zip
+          path: publish/*

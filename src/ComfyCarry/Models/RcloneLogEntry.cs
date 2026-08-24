@@ -58,6 +58,36 @@ public sealed class RcloneStats
 
     [JsonPropertyName("elapsedTime")]
     public double ElapsedTime { get; set; }
+
+    [JsonPropertyName("totalBytes")]
+    public long TotalBytes { get; set; }
+
+    [JsonPropertyName("totalTransfers")]
+    public int TotalTransfers { get; set; }
+
+    [JsonPropertyName("transferring")]
+    public List<RcloneTransfer> Transferring { get; set; } = new();
+}
+
+public sealed class RcloneTransfer
+{
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+
+    [JsonPropertyName("size")]
+    public long? Size { get; set; }
+
+    [JsonPropertyName("bytes")]
+    public long Bytes { get; set; }
+
+    [JsonPropertyName("percentage")]
+    public double? Percentage { get; set; }
+
+    [JsonPropertyName("speed")]
+    public double? Speed { get; set; }
+
+    [JsonPropertyName("eta")]
+    public double? Eta { get; set; }
 }
 
 /// <summary>

@@ -128,13 +128,23 @@ public sealed class PullEngine
             {
                 if (entry.Stats is not null)
                 {
-                    // stats 汇总行：更新速度和文件数，不覆盖文件名
-                    long speed = (long)entry.Stats.Speed;
-                    _rules.ReportStats(speed, filesSynced);
+                    var st = entry.Stats;
+                    long speed = (long)st.Speed;
+                    int done = st.Transfers;
+                    var active = st.Transferring.Count > 0 ? st.Transferring[0] : null;
+                    if (active is not null)
+                    {
+                        int pct = active.Percentage is { } p ? (int)Math.Round(p) : 0;
+                        string file = active.Name;
+                        _rules.ReportProgress(file, pct, speed, done);
+                    }
+                    else
+                    {
+                        _rules.ReportStats(speed, done);
+                    }
                 }
                 else if (entry.Percentage is not null)
                 {
-                    // per-transfer 行：更新文件名和百分比
                     int pct = (int)Math.Round(entry.Percentage.Value);
                     long speed = entry.Speed is { } s ? (long)s : 0;
                     string file = entry.Object ?? entry.Name ?? "";
