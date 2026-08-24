@@ -128,6 +128,7 @@ public sealed partial class CloudHomePage : Page
             CloseButtonText = L.T("common.cancel"),
             DefaultButton = ContentDialogButton.Close,
             XamlRoot = this.XamlRoot,
+            RequestedTheme = App.MainWindow.DialogTheme,
         };
         if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
         try
@@ -157,6 +158,7 @@ public sealed partial class CloudHomePage : Page
                 Content = ex.Message,
                 CloseButtonText = L.T("common.ok"),
                 XamlRoot = this.XamlRoot,
+                RequestedTheme = App.MainWindow.DialogTheme,
             };
             _ = await err.ShowAsync();
         }
@@ -190,6 +192,7 @@ public sealed partial class CloudHomePage : Page
                 Content = ex.Message,
                 CloseButtonText = L.T("common.ok"),
                 XamlRoot = this.XamlRoot,
+                RequestedTheme = App.MainWindow.DialogTheme,
             };
             _ = await err.ShowAsync();
         }

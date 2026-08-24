@@ -169,6 +169,7 @@ public sealed partial class SettingsPage : Page
             CloseButtonText = L.T("common.cancel"),
             DefaultButton = ContentDialogButton.Close,
             XamlRoot = this.XamlRoot,
+            RequestedTheme = App.MainWindow.DialogTheme,
         };
         if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
         App.Hub.Instances.Remove(id);

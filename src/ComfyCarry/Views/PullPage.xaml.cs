@@ -186,6 +186,7 @@ public sealed partial class PullPage : Page
                 PrimaryButtonText = L.T("common.ok"),
                 CloseButtonText = L.T("common.cancel"),
                 XamlRoot = this.XamlRoot,
+                RequestedTheme = App.MainWindow.DialogTheme,
             };
             var r = await confirm.ShowAsync();
             if (r != ContentDialogResult.Primary) return;
@@ -202,6 +203,7 @@ public sealed partial class PullPage : Page
                         Content = msg,
                         CloseButtonText = L.T("common.ok"),
                         XamlRoot = this.XamlRoot,
+                        RequestedTheme = App.MainWindow.DialogTheme,
                     };
                     await dlg.ShowAsync();
                 });
@@ -220,6 +222,7 @@ public sealed partial class PullPage : Page
             CloseButtonText = L.T("common.cancel"),
             DefaultButton = ContentDialogButton.Close,
             XamlRoot = this.XamlRoot,
+            RequestedTheme = App.MainWindow.DialogTheme,
         };
         if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
         App.Hub.Rules.DeleteRule(ruleId);

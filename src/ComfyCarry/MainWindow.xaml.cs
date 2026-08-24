@@ -251,6 +251,21 @@ public sealed partial class MainWindow : Window
         set { if (this.Content is FrameworkElement root) root.RequestedTheme = value; }
     }
 
+    /// <summary>
+    /// 供 ContentDialog 使用的主题：RootTheme 为 Default 时解析系统主题返回 Light/Dark。
+    /// ContentDialog 经 XamlRoot 显示在独立 popup 树，不继承 root.RequestedTheme，
+    /// 必须显式设置；而 ElementTheme.Default 对它无效，故这里解析为具体值。
+    /// </summary>
+    public ElementTheme DialogTheme
+    {
+        get
+        {
+            var t = RootTheme;
+            if (t == ElementTheme.Default) t = IsSystemDark() ? ElementTheme.Dark : ElementTheme.Light;
+            return t;
+        }
+    }
+
     public void ApplyLanguage()
     {
         NavCloudLabel.Text = L.T("nav.cloud");

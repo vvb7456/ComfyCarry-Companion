@@ -11,6 +11,7 @@ public sealed partial class ConnectDialog : ContentDialog
     public ConnectDialog()
     {
         this.InitializeComponent();
+        RequestedTheme = App.MainWindow.DialogTheme;
         Localize();
         PrimaryButtonClick += ConnectDialog_PrimaryButtonClick;
     }

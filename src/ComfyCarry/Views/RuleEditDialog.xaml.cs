@@ -17,6 +17,7 @@ public sealed partial class RuleEditDialog : ContentDialog
     public RuleEditDialog(PullRule rule, bool isNew)
     {
         this.InitializeComponent();
+        RequestedTheme = App.MainWindow.DialogTheme;
         Rule = rule;
         _isNew = isNew;
         _selectedContent = rule.Content;
