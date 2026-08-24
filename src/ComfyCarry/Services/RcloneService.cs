@@ -598,15 +598,13 @@ public sealed class RcloneService
         if (!IsPresent) { await onLog(new RcloneLogEntry { Level = "error", Msg = "rclone.exe not found." }); return 127; }
 
         var psi = BuildPsi(args, proxy);
-        psi.RedirectStandardError = false; // JSON 日志走 stdout
-        psi.StandardErrorEncoding = null;
         using var p = Process.Start(psi)!;
         // 注册取消：杀掉 rclone 进程树，否则进程会继续跑
         await using var _ = ct.Register(() =>
         {
             try { if (!p.HasExited) p.Kill(entireProcessTree: true); } catch { /* ignore */ }
         });
-        // rclone --use-json-log 输出到 stdout，逐行读
+        // rclone --use-json-log 的 JSON 行走 stderr（非 stdout），逐行读
         // 用 Task.WhenAny 防止孙进程持有管道导致 ReadLineAsync 永久阻塞
         var readTask = ReadAllLinesAsync(p, onLog, ct);
         var exitTask = p.WaitForExitAsync(ct);
@@ -627,10 +625,10 @@ public sealed class RcloneService
 
     private async Task ReadAllLinesAsync(Process p, Func<RcloneLogEntry, Task> onLog, CancellationToken ct)
     {
-        while (!p.StandardOutput.EndOfStream)
+        while (!p.StandardError.EndOfStream)
         {
             ct.ThrowIfCancellationRequested();
-            var line = await p.StandardOutput.ReadLineAsync(ct);
+            var line = await p.StandardError.ReadLineAsync(ct);
             if (string.IsNullOrEmpty(line)) continue;
             var entry = TryParseLog(line);
             if (entry is not null) await onLog(entry);
