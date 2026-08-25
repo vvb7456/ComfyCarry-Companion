@@ -4,7 +4,7 @@ using ComfyCarry.Models;
 namespace ComfyCarry.Services;
 
 /// <summary>
-/// 周期心跳上报（SPEC §2.4）。15~30s 上报 client_id/hostname/version/status/active_rule/progress。
+/// 周期心跳上报（SPEC §2.4）。15~30s 上报 client_id/hostname/version/status。
 /// </summary>
 public sealed class HeartbeatService
 {
@@ -67,13 +67,6 @@ public sealed class HeartbeatService
             Hostname = Hostname,
             AppVersion = AppVer,
             Status = status,
-            ActiveRuleId = _rules.ActiveRule?.RuleId,
-            Progress = new HeartbeatProgress
-            {
-                File = _rules.ActiveFile,
-                Pct = _rules.ProgressPct,
-                Speed = _rules.ActiveSpeed,
-            },
             RuleSummaries = _ruleStore.All.Select(r => new RuleSummary
             {
                 Name = r.Name,

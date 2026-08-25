@@ -39,26 +39,8 @@ public sealed class HeartbeatRequest
     [JsonPropertyName("status")]
     public string Status { get; set; } = "idle";
 
-    [JsonPropertyName("active_rule_id")]
-    public string? ActiveRuleId { get; set; }
-
-    [JsonPropertyName("progress")]
-    public HeartbeatProgress? Progress { get; set; }
-
     [JsonPropertyName("rule_summaries")]
     public List<RuleSummary> RuleSummaries { get; set; } = new();
-}
-
-public sealed class HeartbeatProgress
-{
-    [JsonPropertyName("file")]
-    public string? File { get; set; }
-
-    [JsonPropertyName("pct")]
-    public int Pct { get; set; }
-
-    [JsonPropertyName("speed")]
-    public long Speed { get; set; }
 }
 
 /// <summary>心跳中的规则摘要（只读，面板 Clients tab 展示用）。</summary>
