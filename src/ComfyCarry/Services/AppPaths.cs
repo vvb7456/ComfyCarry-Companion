@@ -36,7 +36,6 @@ public sealed class AppPaths
         SettingsFile = Path.Combine(DataDir, "settings.json");
         LogFile = Path.Combine(Root, "comfycarry.log");
         PlacementFile = Path.Combine(DataDir, "placement.json");
-        AssetsDir = Path.Combine(AppContext.BaseDirectory, "Assets");
     }
 
     public void EnsureCreated()
