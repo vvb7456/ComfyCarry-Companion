@@ -58,24 +58,19 @@ public sealed partial class MainWindow : Window
         if (target is not null)
         {
             Nav.SelectedItem = target;
-            if (target.Tag is string t2)
-            {
-                Type page = t2 switch
-                {
-                    "cloud" => typeof(CloudSetupPage),
-                    "pull" => typeof(PullPage),
-                    "settings" => typeof(SettingsPage),
-                    _ => typeof(CloudSetupPage),
-                };
-                ContentFrame.Navigate(page);
-            }
+            ContentFrame.Navigate(PageForTag(target.Tag as string));
         }
         else
         {
-            Nav.SelectedItem = items.FirstOrDefault();
-            ContentFrame.Navigate(typeof(CloudSetupPage));
+            ContentFrame.Navigate(typeof(PullPage));
         }
     }
+
+    private static Type PageForTag(string? tag) => tag switch
+    {
+        "settings" => typeof(SettingsPage),
+        _ => typeof(PullPage),
+    };
 
     private void OnWindowClosing(Microsoft.UI.Windowing.AppWindow sender, Microsoft.UI.Windowing.AppWindowClosingEventArgs args)
     {
@@ -180,14 +175,7 @@ public sealed partial class MainWindow : Window
     {
         if (args.SelectedItem is NavigationViewItem nvi && nvi.Tag is string tag)
         {
-            Type page = tag switch
-            {
-                "cloud" => typeof(CloudSetupPage),
-                "pull" => typeof(PullPage),
-                "settings" => typeof(SettingsPage),
-                _ => typeof(CloudSetupPage),
-            };
-            ContentFrame.Navigate(page);
+            ContentFrame.Navigate(PageForTag(tag));
             App.Hub.Settings.Update(s => s.LastTab = tag);
         }
     }
@@ -268,7 +256,6 @@ public sealed partial class MainWindow : Window
 
     public void ApplyLanguage()
     {
-        NavCloudLabel.Text = L.T("nav.cloud");
         NavPullLabel.Text = L.T("nav.pull");
         NavSettingsLabel.Text = L.T("nav.settings");
         var ver = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;

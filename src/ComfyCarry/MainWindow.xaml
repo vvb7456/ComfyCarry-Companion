@@ -32,12 +32,6 @@
                     </NavigationViewItem.Icon>
                     <TextBlock x:Name="NavPullLabel" Text="同步"/>
                 </NavigationViewItem>
-                <NavigationViewItem Tag="cloud">
-                    <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE753;"/>
-                    </NavigationViewItem.Icon>
-                    <TextBlock x:Name="NavCloudLabel" Text="云存储配置"/>
-                </NavigationViewItem>
                 <NavigationViewItem Tag="settings">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE713;"/>

@@ -9,15 +9,14 @@
 
 - **来源**：https://rclone.org/downloads/ 下载 `rclone-v1.xx.x-windows-amd64.zip`，解压后取其中的 `rclone.exe`。
 - **放置位置**：`src/ComfyCarry/Assets/rclone.exe`
-- **用途**：Tab 1 云存储配置（OAuth 状态机 / lsd / mkdir）、Tab 2 产物取回（copy/move/sync 拉取）共用同一个内置 rclone.exe（SPEC §0.2/§3.1/§3.3）。
+- **用途**：同步拉取（copy/move/sync、lsf）与实例 webdav remote 写入，SPEC §3.4。
 - **csproj 配置**：`ComfyCarry.csproj` 已声明
   ```xml
-  <None Update="Assets\rclone.exe">
-    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-  </None>
+  <Content Include="Assets\rclone.exe" Link="rclone.exe" CopyToOutputDirectory="PreserveNewest"
+           Condition="Exists('Assets\rclone.exe')" />
   ```
   发布时会自动复制到输出目录，运行时 `AppPaths.RcloneExePath` 指向 `{应用目录}/rclone.exe`。
-- **缺失行为**：若 `rclone.exe` 不存在，Tab 1 会显示警告条（`cloud.rcloneMissing`），Tab 2 拉取会标记错误并回报面板。功能不崩溃。
+- **缺失行为**：若 `rclone.exe` 不存在，同步拉取会标记错误并回报面板，功能不崩溃。
 
 ### 2. `app.ico` —— 应用图标（可选）
 

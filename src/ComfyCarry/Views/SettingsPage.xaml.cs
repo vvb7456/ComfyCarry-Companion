@@ -176,7 +176,7 @@ public sealed partial class SettingsPage : Page
         var confirm = new ContentDialog
         {
             Title = L.T("common.delete"),
-            Content = L.T("cloud.home.deleteConfirm"),
+            Content = L.T("settings.instance.deleteConfirm"),
             PrimaryButtonText = L.T("common.delete"),
             CloseButtonText = L.T("common.cancel"),
             DefaultButton = ContentDialogButton.Close,

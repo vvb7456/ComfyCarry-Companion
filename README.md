@@ -1,9 +1,6 @@
 # ComfyCarry Companion
 
-Windows 桌面客户端，为 ComfyUI 远程 GPU 实例提供两个功能：
-
-1. **同步** - 通过 WebDAV 从实例拉取 ComfyUI 输出文件到本机
-2. **云存储配置** - 为无头实例生成 rclone.conf（代为完成 OAuth）
+Windows 桌面客户端，通过 WebDAV 从远程 ComfyUI 实例拉取输出文件到本机。
 
 ## 下载
 

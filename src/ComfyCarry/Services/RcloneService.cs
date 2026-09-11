@@ -5,8 +5,8 @@ using ComfyCarry.Models;
 namespace ComfyCarry.Services;
 
 /// <summary>
-/// 封装内置 rclone.exe 的调用：非交互配置状态机、lsd/mkdir/copy/move/sync、JSON 日志解析。
-/// rclone.exe 视为存在于应用目录（SPEC §3.3/§3.4）。
+/// 封装内置 rclone.exe 的调用：实例 webdav remote 写入、lsf/copy/move/sync、JSON 日志解析。
+/// rclone.exe 视为存在于应用目录（SPEC §3.4）。
 /// </summary>
 public sealed class RcloneService
 {
@@ -22,372 +22,7 @@ public sealed class RcloneService
 
     public bool IsPresent => File.Exists(ExePath);
 
-    // ---------- 非交互配置状态机（Tab1 OAuth） ----------
-
-    /// <summary>
-    /// rclone config create <name> <type> [k=v...] --non-interactive --config <conf> [--continue --state --result]
-    /// 返回 rclone stdout（JSON 状态对象）。
-    /// </summary>
-    public async Task<RcloneConfigState> ConfigCreateAsync(
-        string confPath,
-        string name,
-        string type,
-        IEnumerable<KeyValuePair<string, string>> options,
-        string? proxy = null,
-        string? continueState = null,
-        string? continueResult = null,
-        CancellationToken ct = default)
-    {
-        var args = new List<string> { "config", "create", name, type };
-        foreach (var kv in options)
-        {
-            if (!string.IsNullOrEmpty(kv.Value))
-                args.Add($"{kv.Key}={kv.Value}");
-        }
-        args.Add("--non-interactive");
-        args.Add("--config"); args.Add(confPath);
-        if (continueState is { Length: > 0 })
-        {
-            args.Add("--continue");
-            args.Add("--state"); args.Add(continueState);
-            if (continueResult is { Length: > 0 }) { args.Add("--result"); args.Add(continueResult); }
-        }
-        var (code, stdout, stderr) = await RunAsync(args, proxy, ct);
-        var state = ParseState(stdout, stderr, code);
-        // 落盘诊断（不记 args，避免泄露密钥）：便于定位 OAuth 状态机走向
-        AppLog.Info($"[rclone] config name={name} type={type} continue={(continueState is { Length: > 0 })} exit={code} " +
-                $"stdoutLen={stdout.Length} -> State='{state.State}' Option='{state.Option?.Name}' Error='{state.Error}'");
-        return state;
-    }
-
-    // rclone OAuth 回调固定端口
-    private const int OAuthPort = 53682;
-
-    /// <summary>rclone 起授权本地服务失败（端口被占）的特征识别。</summary>
-    private static bool LooksLikePortBindError(string? err)
-    {
-        if (string.IsNullOrEmpty(err)) return false;
-        return err.Contains("53682")
-            || err.Contains("auth webserver", StringComparison.OrdinalIgnoreCase)
-            || err.Contains("forbidden by its access permissions", StringComparison.OrdinalIgnoreCase);
-    }
-
-    /// <summary>
-    /// 杀掉占用指定本地端口的进程。rclone OAuth 固定用 53682，卡住的前次授权会永久占用它，
-    /// 后续 bind 报 WSAEACCES。用 netstat -ano 精确定位监听该端口的 PID，只杀占端口者，
-    /// 不误伤后台 pull 的 rclone。
-    /// </summary>
-    public void KillPortListener(int port)
-    {
-        try
-        {
-            var psi = new ProcessStartInfo
-            {
-                FileName = "netstat",
-                Arguments = "-ano",
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardOutput = true,
-            };
-            using var p = Process.Start(psi);
-            if (p is null) return;
-            var outp = p.StandardOutput.ReadToEnd();
-            p.WaitForExit(5000);
-
-            var suffix = ":" + port;
-            var pids = new HashSet<int>();
-            foreach (var line in outp.Split('\n'))
-            {
-                var parts = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
-                // 形如: TCP  127.0.0.1:53682  0.0.0.0:0  LISTENING  7820
-                if (parts.Length >= 5
-                    && parts[0].Equals("TCP", StringComparison.OrdinalIgnoreCase)
-                    && parts[1].EndsWith(suffix, StringComparison.Ordinal)
-                    && int.TryParse(parts[^1], out var pid) && pid > 0)
-                {
-                    pids.Add(pid);
-                }
-            }
-            foreach (var pid in pids)
-            {
-                try { using var proc = Process.GetProcessById(pid); proc.Kill(true); AppLog.Info($"已杀占用 {port} 的进程 pid={pid}"); }
-                catch { /* 进程可能已退出 */ }
-            }
-        }
-        catch { /* 清理失败不阻塞主流程 */ }
-    }
-
-    /// <summary>
-    /// 检测端口是否落在 Windows 排除范围（Hyper-V/WSL 动态保留），
-    /// 若是则提权重启 winnat 释放动态保留后端口即可绑定。
-    /// </summary>
-    public bool TryReleaseExcludedPort(int port)
-    {
-        try
-        {
-            // 1. 检查是否在排除范围
-            var psi = new ProcessStartInfo
-            {
-                FileName = "netsh",
-                Arguments = "interface ipv4 show excludedportrange protocol=tcp",
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardOutput = true,
-            };
-            using var p = Process.Start(psi);
-            if (p is null) return false;
-            var output = p.StandardOutput.ReadToEnd();
-            p.WaitForExit(5000);
-
-            bool inExcludedRange = false;
-            foreach (var line in output.Split('\n'))
-            {
-                var parts = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length >= 2 && int.TryParse(parts[0], out var start) && int.TryParse(parts[1], out var end))
-                {
-                    if (port >= start && port <= end) { inExcludedRange = true; break; }
-                }
-            }
-            if (!inExcludedRange) return false;
-
-            AppLog.Info($"端口 {port} 在 Windows 排除范围内，尝试提权重启 winnat 释放");
-
-            // 2. 提权重启 winnat（释放动态端口保留）
-            var elev = new ProcessStartInfo
-            {
-                FileName = "cmd.exe",
-                Arguments = "/c net stop winnat & timeout /t 2 /nobreak >nul & net start winnat",
-                UseShellExecute = true,
-                Verb = "runas",
-                CreateNoWindow = true,
-                WindowStyle = ProcessWindowStyle.Hidden,
-            };
-            using var ep = Process.Start(elev);
-            ep?.WaitForExit(15000);
-            AppLog.Info("winnat 重启完成");
-            return true;
-        }
-        catch (Exception ex)
-        {
-            AppLog.Info($"TryReleaseExcludedPort 失败: {ex.Message}");
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// 继续状态机：把用户的选择（或驱动的自动应答）回灌给 rclone。
-    /// 仍以 config create &lt;name&gt; &lt;type&gt; --continue 形式发起（实测缺 type 会报 couldn't find type field）。
-    /// </summary>
-    public Task<RcloneConfigState> ConfigContinueAsync(
-        string confPath, string name, string type, string state, string result, string? proxy = null, CancellationToken ct = default)
-        => ConfigCreateAsync(confPath, name, type, Enumerable.Empty<KeyValuePair<string, string>>(),
-            proxy, continueState: state, continueResult: result, ct: ct);
-
-    /// <summary>
-    /// rclone authorize <type> [k=v] —— 让 rclone 自己开浏览器完成 OAuth。
-    /// 仅当状态机需要单独 authorize 时使用（多数情况 config create 已自带）。
-    /// </summary>
-    public async Task<(int code, string stdout, string stderr)> AuthorizeAsync(
-        string type, IEnumerable<KeyValuePair<string, string>> options, string? proxy = null, CancellationToken ct = default)
-    {
-        var args = new List<string> { "authorize", type };
-        foreach (var kv in options) if (!string.IsNullOrEmpty(kv.Value)) args.Add($"{kv.Key}={kv.Value}");
-        return await RunAsync(args, proxy, ct);
-    }
-
-    // ---------- 状态机驱动器：机器类问题自动应答，只把"真正要用户选的"回给 UI ----------
-
-    private const int DriveMaxSteps = 25;
-
-    /// <summary>
-    /// 启动 OAuth/参数配置状态机：config create &lt;name&gt; &lt;type&gt; [k=v] --non-interactive。
-    /// 自动处理 config_is_local（开浏览器、阻塞到登录完成）、bool y/n、Required==false 可选项；
-    /// 遇 Exclusive==true && Type!="bool" && Examples.Count>0 的"真正用户选择"（如 OneDrive 选 drive）则返回 NeedChoice。
-    /// progress 用于把"浏览器已打开，请在浏览器完成登录…"之类提示推给 UI。
-    /// </summary>
-    public async Task<ConfigDriveResult> ConfigDriveAsync(
-        string confPath, string name, string type,
-        IEnumerable<KeyValuePair<string, string>> options,
-        string? proxy = null,
-        IProgress<string>? progress = null,
-        CancellationToken ct = default,
-        IReadOnlyDictionary<string, string>? autoAnswers = null)
-    {
-        var st = await ConfigCreateAsync(confPath, name, type, options, proxy, null, null, ct);
-        return await DriveLoopAsync(confPath, name, type, st, proxy, progress, ct, autoAnswers);
-    }
-
-    /// <summary>
-    /// 在用户选完一项后继续驱动状态机，直到 done 或下一个 NeedChoice。
-    /// </summary>
-    public async Task<ConfigDriveResult> ConfigDriveContinueAsync(
-        string confPath, string name, string type, ConfigDriveResult last, string result,
-        string? proxy = null, IProgress<string>? progress = null, CancellationToken ct = default,
-        IReadOnlyDictionary<string, string>? autoAnswers = null)
-    {
-        if (last.Outcome != ConfigDriveOutcome.NeedChoice)
-            return last;
-        var st = await ConfigContinueAsync(confPath, name, type, last.State, result, proxy, ct);
-        return await DriveLoopAsync(confPath, name, type, st, proxy, progress, ct, autoAnswers);
-    }
-
-    private async Task<ConfigDriveResult> DriveLoopAsync(
-        string confPath, string name, string type,
-        RcloneConfigState st, string? proxy, IProgress<string>? progress, CancellationToken ct,
-        IReadOnlyDictionary<string, string>? autoAnswers = null)
-    {
-        for (int step = 0; step < DriveMaxSteps; step++)
-        {
-            // 完成
-            if (st.IsDone)
-                return ConfigDriveResult.Done();
-
-            // 出错
-            if (!string.IsNullOrEmpty(st.Error))
-                return ConfigDriveResult.Error(st.Error);
-
-            // 无待答问题但未完成：视为异常终止
-            if (st.Option is null)
-                return ConfigDriveResult.Error("rclone returned no option but is not done.");
-
-            var opt = st.Option;
-            AppLog.Info($"step={step} opt.Name={opt.Name} Exclusive={opt.Exclusive} Examples={opt.Examples.Count}");
-
-            // config_is_local：自动继续，result=true。
-            // 这一步 rclone 打开浏览器并起本地 127.0.0.1:53682 回调，阻塞到登录完成。
-            // 卡住的前次授权会永久占用 53682 → 后续 bind 报 WSAEACCES。先清理占用者；失败再清一次重试。
-            if (string.Equals(opt.Name, "config_is_local", StringComparison.Ordinal))
-            {
-                progress?.Report("browser");
-                var localState = st.State;
-                KillPortListener(OAuthPort);
-                st = await ConfigContinueAsync(confPath, name, type, localState, "true", proxy, ct);
-                if (LooksLikePortBindError(st.Error))
-                {
-                    AppLog.Info("53682 绑定失败，清理占用者 + 检测排除范围后重试");
-                    KillPortListener(OAuthPort);
-                    TryReleaseExcludedPort(OAuthPort);
-                    await Task.Delay(1000, ct);
-                    st = await ConfigContinueAsync(confPath, name, type, localState, "true", proxy, ct);
-                }
-                // 只有确认 rclone 无错误才报告登录完成，否则让循环顶部的错误检查处理
-                if (string.IsNullOrEmpty(st.Error))
-                    progress?.Report("login_done");
-                continue;
-            }
-
-            // 自动回答优先：无论 Exclusive 与否，只要 autoAnswers 命中就自动继续
-            if (autoAnswers is not null && autoAnswers.TryGetValue(opt.Name, out var autoVal))
-            {
-                string? answer = ResolveAutoAnswer(autoVal, opt.Examples);
-                if (answer is not null)
-                {
-                    AppLog.Info($"auto-answer {opt.Name} = {answer}");
-                    st = await ConfigContinueAsync(confPath, name, type, st.State, answer, proxy, ct);
-                    continue;
-                }
-                // __match 未命中 → 不自动回答，落到下面的 NeedChoice
-                AppLog.Info($"auto-answer {opt.Name}: match failed, falling through to user choice. Examples: [{string.Join(" | ", opt.Examples.Select(e => e.Help))}]");
-            }
-
-            // 真正要用户选的：有 Examples 列表且非 bool 类型（无论 Exclusive 与否都展示给用户选）
-            if (!string.Equals(opt.Type, "bool", StringComparison.OrdinalIgnoreCase) && opt.Examples.Count > 1)
-            {
-                AppLog.Info($"NeedChoice {opt.Name}: [{string.Join(" | ", opt.Examples.Select(e => $"{e.Value}={e.Help}"))}]");
-                return ConfigDriveResult.NeedChoice(st.State, opt.Name, opt.Examples);
-            }
-
-            // 其它（bool y/n、Required==false 可选项）：用默认值自动继续
-            var result = !string.IsNullOrEmpty(opt.DefaultStr) ? opt.DefaultStr : "";
-            st = await ConfigContinueAsync(confPath, name, type, st.State, result, proxy, ct);
-        }
-
-        return ConfigDriveResult.Error($"rclone config loop exceeded {DriveMaxSteps} steps.");
-    }
-
-    /// <summary>
-    /// 解析 AutoAnswers 值：
-    ///   "__first__" → 选 Examples[0].Value
-    ///   "__exact:text__" → 精确匹配 Help 文本（不区分大小写），返回首个命中的 Value；未命中返回 null
-    ///   "__match:keyword__" → 在 Examples 的 Help 中不区分大小写搜索 keyword，返回首个命中的 Value；未命中返回 null
-    ///   其它 → 直接作为字面量值返回
-    /// </summary>
-    private static string? ResolveAutoAnswer(string autoVal, List<RcloneExample> examples)
-    {
-        if (autoVal == "__first__")
-            return examples.Count > 0 ? examples[0].Value : null;
-
-        if (autoVal.StartsWith("__exact:", StringComparison.Ordinal) && autoVal.EndsWith("__", StringComparison.Ordinal))
-        {
-            var target = autoVal[8..^2];
-            var match = examples.FirstOrDefault(e =>
-                e.Help.Equals(target, StringComparison.OrdinalIgnoreCase));
-            return match?.Value;
-        }
-
-        if (autoVal.StartsWith("__match:", StringComparison.Ordinal) && autoVal.EndsWith("__", StringComparison.Ordinal))
-        {
-            var keyword = autoVal[8..^2];
-            var match = examples.FirstOrDefault(e =>
-                e.Help.Contains(keyword, StringComparison.OrdinalIgnoreCase));
-            return match?.Value;
-        }
-
-        return autoVal;
-    }
-
-    private static RcloneConfigState ParseState(string stdout, string stderr, int code)
-    {
-        // rclone --non-interactive 把 JSON 状态对象输出到 stdout，且是【多行美化】JSON（实测 33 行），
-        // 日志/NOTICE（含"浏览器 URL""Config file not found"）走 stderr。
-        // 因此取 stdout 里首个 '{' 到末个 '}' 的整段解析，不能按单行找。
-        var start = stdout.IndexOf('{');
-        var end = stdout.LastIndexOf('}');
-        if (start >= 0 && end > start)
-        {
-            try
-            {
-                var json = stdout.Substring(start, end - start + 1);
-                var s = JsonSerializer.Deserialize<RcloneConfigState>(json);
-                if (s is not null) return s;   // rclone 把真正的错误放在 JSON 的 "Error" 字段
-            }
-            catch { /* 落到下面的兜底 */ }
-        }
-        // 无可解析 JSON：仅当进程失败时才把 stderr 当错误（stderr 常态含无害 NOTICE，不能直接当错误）。
-        var state = new RcloneConfigState();
-        if (code != 0)
-            state.Error = !string.IsNullOrWhiteSpace(stderr) ? stderr.Trim() : $"rclone exited {code}";
-        return state;
-    }
-
-    // ---------- 连接测试 / 建目录 ----------
-
-    public async Task<(bool ok, string message)> LsdAsync(string confPath, string remote, string? proxy = null, CancellationToken ct = default)
-    {
-        var args = new[] { "lsd", $"{remote}:", "--config", confPath, "--contimeout", "30s", "--timeout", "60s" };
-        var (code, stdout, stderr) = await RunAsync(args, proxy, ct);
-        return (code == 0, code == 0 ? stdout : stderr);
-    }
-
-    public async Task<int> MkdirAsync(string confPath, string remote, string path, string? proxy = null, CancellationToken ct = default)
-    {
-        var args = new[] { "mkdir", $"{remote}:{path}", "--config", confPath };
-        var (code, _, _) = await RunAsync(args, proxy, ct);
-        return code;
-    }
-
-    public async Task<int> CreateStandardTreeAsync(string confPath, string remote, string? proxy = null, CancellationToken ct = default)
-    {
-        var subdirs = new[] { "models/checkpoints", "models/loras", "models/vae", "models/embeddings", "output", "input", "workflow", "temp" };
-        int last = 0;
-        foreach (var d in subdirs)
-        {
-            last = await MkdirAsync(confPath, remote, $"ComfyCarry/{d}", proxy, ct);
-        }
-        return last;
-    }
-
-    // ---------- 拉取执行（Tab2） ----------
+    // ---------- 拉取执行 ----------
 
     /// <summary>
     /// 读取本机 rclone remote 名（per-instance webdav remote）。
@@ -395,21 +30,27 @@ public sealed class RcloneService
     public string InstanceRemoteName(PanelInstance inst) => $"cc-{inst.Id.Substring(0, 8)}";
 
     /// <summary>
-    /// 确保实例的 webdav remote 已写入 app conf。
+    /// 确保实例的 webdav remote 已写入 app conf（config create 会覆盖同名）。
     /// </summary>
     public async Task EnsureInstanceWebdavRemoteAsync(PanelInstance inst, CancellationToken ct = default)
     {
         var remoteName = InstanceRemoteName(inst);
         var obscuredPass = await ObscureAsync(inst.Password, ct);
-        // config create 会覆盖同名
-        var opts = new Dictionary<string, string>
+        var args = new List<string>
         {
-            ["url"] = inst.DavUrl,
-            ["user"] = inst.DavUser,
-            ["pass"] = obscuredPass,
-            ["vendor"] = "other",
+            "config", "create", remoteName, "webdav",
+            $"url={inst.DavUrl}",
+            $"user={inst.DavUser}",
+            $"pass={obscuredPass}",
+            "vendor=other",
+            "--non-interactive",
+            "--config", _paths.PullRcloneConf,
         };
-        await ConfigCreateAsync(_paths.PullRcloneConf, remoteName, "webdav", opts, null, null, null, ct);
+        // 不记 args，避免泄露凭据
+        var (code, _, stderr) = await RunAsync(args, null, ct);
+        AppLog.Info($"[rclone] config create name={remoteName} type=webdav exit={code}");
+        if (code != 0)
+            throw new Exception(stderr.Length > 0 ? stderr.Trim() : $"rclone config create exited {code}");
     }
 
     /// <summary>
@@ -456,7 +97,7 @@ public sealed class RcloneService
     }
 
     /// <summary>
-    /// 执行拉取：rclone <method> <remote>:<remote_path> <local_path> --filter ... --multi-thread-cutoff 32M --multi-thread-streams 4 --use-json-log --stats-one-line
+    /// 执行拉取：rclone &lt;method&gt; &lt;remote&gt;: &lt;local_path&gt; --filter ... --multi-thread-cutoff 32M --multi-thread-streams 4 --use-json-log --stats-one-line
     /// 逐行解析 JSON 日志并回调。
     /// </summary>
     public async Task<int> PullAsync(
